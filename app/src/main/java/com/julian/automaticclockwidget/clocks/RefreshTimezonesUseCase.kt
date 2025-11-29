@@ -26,7 +26,7 @@ class RefreshTimezonesUseCase(
         // Compute startDate = now - 3 days (local tz)
         val tz = TimeZone.currentSystemDefault()
         val now = Clock.System.now()
-        val startDate = now.minus(DatePeriod(days = 5), tz).toLocalDateTime(tz)
+        val startDate = now.toLocalDateTime(tz)
 
         // Fetch upcoming airports
         val airportsResult = getUpcomingClocksUseCase.getUpcomingClocks(selectedUrl, startDate)

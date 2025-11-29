@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalTime::class)
+
 package com.julian.automaticclockwidget.clocks
 
 import com.julian.automaticclockwidget.airports.Airport
@@ -17,41 +19,53 @@ import kotlinx.datetime.TimeZone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.ExperimentalTime
 
 class RefreshTimezonesUseCaseTest {
 
     @Test
     fun preserves_order_of_successes_even_when_some_fail() = runBlocking {
-        val urlRepo = com.julian.automaticclockwidget.fixtures.FakeUrlPreferencesRepository().apply {
+        val urlRepo = FakeUrlPreferencesRepository().apply {
             addUrl("https://ics"); selectUrl("https://ics")
         }
-        val clocksRepo = com.julian.automaticclockwidget.fixtures.FakeClocksPreferencesRepository()
+        val clocksRepo = FakeClocksPreferencesRepository()
 
         // Events in order: AAA, BBB, CCC
-        val events = com.julian.automaticclockwidget.calendars.Events(
+        val events = Events(
             listOf(
-                com.julian.automaticclockwidget.calendars.Event("Foo - 111ON - AAA", kotlinx.datetime.LocalDateTime(2099,1,10,12,0,0), kotlinx.datetime.LocalDateTime(2099,1,10,13,0,0)),
-                com.julian.automaticclockwidget.calendars.Event("Bar - 222ON - BBB", kotlinx.datetime.LocalDateTime(2099,1,11,12,0,0), kotlinx.datetime.LocalDateTime(2099,1,11,13,0,0)),
-                com.julian.automaticclockwidget.calendars.Event("Baz - 333ON - CCC", kotlinx.datetime.LocalDateTime(2099,1,12,12,0,0), kotlinx.datetime.LocalDateTime(2099,1,12,13,0,0)),
+                Event("Foo - 111ON - AAA",
+                    LocalDateTime(2099,1,10,12,0,0),
+                    LocalDateTime(2099,1,10,13,0,0)
+                ),
+                Event("Bar - 222ON - BBB",
+                    LocalDateTime(2099,1,11,12,0,0),
+                    LocalDateTime(2099,1,11,13,0,0)
+                ),
+                Event("Baz - 333ON - CCC",
+                    LocalDateTime(2099,1,12,12,0,0),
+                    LocalDateTime(2099,1,12,13,0,0)
+                ),
             )
         )
-        val calRepo = com.julian.automaticclockwidget.fixtures.FakeCalendarsRepository().apply { result = Result.success(com.julian.automaticclockwidget.calendars.Calendar("cid", events)) }
-        val airRepo = com.julian.automaticclockwidget.fixtures.FakeAirportsRepository().apply {
-            responses["AAA"] = Result.success(com.julian.automaticclockwidget.airports.Airport("AAA", "A City", kotlinx.datetime.TimeZone.of("UTC")))
+        val calRepo = FakeCalendarsRepository().apply { result = Result.success(
+            Calendar("cid", events)
+        ) }
+        val airRepo = FakeAirportsRepository().apply {
+            responses["AAA"] = Result.success(Airport("AAA", "A City", TimeZone.of("UTC")))
             responses["BBB"] = Result.failure(Exception("not available"))
-            responses["CCC"] = Result.success(com.julian.automaticclockwidget.airports.Airport("CCC", "C City", kotlinx.datetime.TimeZone.of("UTC")))
+            responses["CCC"] = Result.success(Airport("CCC", "C City", TimeZone.of("UTC")))
         }
-        val downloadUC = com.julian.automaticclockwidget.calendars.DownloadCalendarUseCase(calRepo)
-        val airportUC = com.julian.automaticclockwidget.airports.GetAirportTimezoneUseCase(airRepo)
-        val getUpcomingUC = com.julian.automaticclockwidget.calendars.GetUpcomingClocksUseCase(downloadUC, airportUC)
+        val downloadUC = DownloadCalendarUseCase(calRepo)
+        val airportUC = GetAirportTimezoneUseCase(airRepo)
+        val getUpcomingUC = GetUpcomingClocksUseCase(downloadUC, airportUC)
 
         val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC)
         val res = sut.refreshNow()
-        org.junit.Assert.assertTrue(res.isSuccess)
+        assertTrue(res.isSuccess)
 
         val saved = clocksRepo.getClocks().getOrThrow()
         // BBB failed, so we should have AAA then CCC in that exact order
-        org.junit.Assert.assertEquals(listOf("AAA", "CCC"), saved.map { it.iataCode })
+        assertEquals(listOf("AAA", "CCC"), saved.map { it.iataCode })
     }
 
     @Test

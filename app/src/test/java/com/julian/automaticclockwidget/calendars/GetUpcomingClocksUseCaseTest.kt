@@ -10,7 +10,9 @@ import kotlinx.datetime.TimeZone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.ExperimentalTime
 
+@ExperimentalTime
 class GetUpcomingClocksUseCaseTest {
 
     @Test
@@ -48,10 +50,10 @@ class GetUpcomingClocksUseCaseTest {
 
         // Assert
         assertTrue(result.isSuccess)
-        val airports = result.getOrNull()!!
+        val airports = result.getOrNull()
         // Only JFK should be included (LHR failed) -> list size 1
-        assertEquals(1, airports.size)
-        assertEquals("JFK", airports.first().iataCode)
+        assertEquals(1, airports?.size)
+        assertEquals("JFK", airports?.firstOrNull()?.iataCode)
     }
 
     @Test
