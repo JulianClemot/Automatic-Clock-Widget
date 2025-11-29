@@ -28,7 +28,7 @@ class RestAirportRepository(private val client: okhttp3.OkHttpClient) : Airports
         private const val FIND_AIRPORT_ENDPOINT =
             "/{:iata}/"
         private const val FIND_AIRPORT_REQUEST =
-            "${BuildConfig.AIRPORTS_BASE_URL} + $FIND_AIRPORT_ENDPOINT"
+            "${BuildConfig.AIRPORTS_BASE_URL}$FIND_AIRPORT_ENDPOINT"
 
         private fun buildHeaders() = listOf(
             "x-rapidapi-host" to "iata-airports.p.rapidapi.com",
