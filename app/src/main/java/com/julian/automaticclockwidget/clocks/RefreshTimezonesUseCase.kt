@@ -1,6 +1,8 @@
-@file:OptIn(kotlin.time.ExperimentalTime::class)
 package com.julian.automaticclockwidget.clocks
 
+import com.julian.automaticclockwidget.clocks.ClocksPreferencesRepository
+import com.julian.automaticclockwidget.clocks.StoredClock
+import kotlin.time.ExperimentalTime
 import com.julian.automaticclockwidget.airports.Airport
 import com.julian.automaticclockwidget.calendars.GetUpcomingClocksUseCase
 import com.julian.automaticclockwidget.settings.UrlPreferencesRepository
@@ -10,6 +12,7 @@ import kotlinx.datetime.minus
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
 
+@OptIn(ExperimentalTime::class)
 class RefreshTimezonesUseCase(
     private val urlRepo: UrlPreferencesRepository,
     private val clocksRepo: ClocksPreferencesRepository,
