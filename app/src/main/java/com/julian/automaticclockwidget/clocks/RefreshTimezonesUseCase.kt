@@ -40,6 +40,6 @@ class RefreshTimezonesUseCase(
 private fun Airport.toStoredClock(): StoredClock =
     StoredClock(
         iataCode = iataCode,
-        name = city,
+        name = city.replace("_", " "),
         timezoneId = timezone.id
     )

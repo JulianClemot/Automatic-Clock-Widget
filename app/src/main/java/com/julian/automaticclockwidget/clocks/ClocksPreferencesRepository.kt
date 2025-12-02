@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import androidx.core.content.edit
 
 interface ClocksPreferencesRepository {
     fun getClocks(): Result<List<StoredClock>>
@@ -26,11 +27,11 @@ class ClocksPreferencesRepositoryImpl(
 
     override fun saveClocks(clocks: List<StoredClock>): Result<Unit> = runCatching {
         val json = Json.encodeToString(clocks)
-        prefs.edit().putString(KEY_CLOCKS_JSON, json).apply()
+        prefs.edit { putString(KEY_CLOCKS_JSON, json) }
     }
 
     override fun clearClocks(): Result<Unit> = runCatching {
-        prefs.edit().remove(KEY_CLOCKS_JSON).apply()
+        prefs.edit { remove(KEY_CLOCKS_JSON) }
     }
 
     private companion object {

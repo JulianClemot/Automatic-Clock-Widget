@@ -34,7 +34,9 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
 import androidx.glance.layout.width
+import androidx.glance.text.FontFamily
 import androidx.glance.text.Text
+import androidx.glance.text.TextAlign
 import androidx.glance.text.TextStyle
 import com.julian.automaticclockwidget.R
 import com.julian.automaticclockwidget.clocks.ClockDisplayFormatter
@@ -63,8 +65,8 @@ class AutomaticClockWidget : GlanceAppWidget(), KoinComponent {
         val stored = clocksRepo.getClocks().getOrElse { emptyList() }
 
         // Calculate how many clocks can fit based on widget size
-        val clockWidth = 78.dp
-        val clockHeight = 78.dp
+        val clockWidth = 90.dp
+        val clockHeight = 90.dp
 
         val clocksPerRow = maxOf(1, (size.width / clockWidth).toInt())
         val maxRows = maxOf(1, (size.height / clockHeight).toInt())
@@ -79,35 +81,10 @@ class AutomaticClockWidget : GlanceAppWidget(), KoinComponent {
             horizontalAlignment = CenterHorizontally
         ) {
             if (visibleClocks.isEmpty()) {
-                Column(
-                    verticalAlignment = CenterVertically,
-                    horizontalAlignment = CenterHorizontally,
-                    modifier = GlanceModifier
-                        .fillMaxSize()
-                        .cornerRadius(25.dp) // Rounded corners like the reference
-                        .background(
-                            ColorProvider(
-                                day = Color.White,
-                                night = Color.Black
-                            )
-                        )
-                        .padding(4.dp) // Inner padding for content
-
-                ) {
-                    Text(
-                        "No clocks stored yet", style = TextStyle(
-                            fontSize = 12.sp,
-                            color = ColorProvider(
-                                day = Color.Black,
-                                night = Color.White
-                            ),
-                        )
-                    )
-                }
+                EmptyClocks()
             } else {
                 // Group clocks into rows
                 val rows = visibleClocks.chunked(clocksPerRow)
-
                 rows.forEach { rowClocks ->
                     Row(
                         modifier = GlanceModifier.fillMaxWidth(),
@@ -117,15 +94,44 @@ class AutomaticClockWidget : GlanceAppWidget(), KoinComponent {
                         rowClocks.forEach { storedClock ->
                             Clock(storedClock = storedClock, clockWidth, clockHeight)
                             if (rowClocks.last() != storedClock) {
-                                Spacer(GlanceModifier.width(8.dp))
+                                Spacer(GlanceModifier.width(4.dp))
                             }
                         }
                     }
                     if (rows.last() != rowClocks) {
-                        Spacer(GlanceModifier.height(4.dp))
+                        Spacer(GlanceModifier.height(2.dp))
                     }
                 }
             }
+        }
+    }
+
+    @Composable
+    fun EmptyClocks() {
+        Column(
+            verticalAlignment = CenterVertically,
+            horizontalAlignment = CenterHorizontally,
+            modifier = GlanceModifier
+                .fillMaxSize()
+                .cornerRadius(25.dp) // Rounded corners like the reference
+                .background(
+                    ColorProvider(
+                        day = Color.White.copy(alpha = 0.8f),
+                        night = Color.Black.copy(alpha = 0.8f)
+                    )
+                )
+                .padding(4.dp) // Inner padding for content
+
+        ) {
+            Text(
+                "No clocks stored yet", style = TextStyle(
+                    fontSize = 12.sp,
+                    color = ColorProvider(
+                        day = Color.Black,
+                        night = Color.White
+                    ),
+                )
+            )
         }
     }
 
@@ -142,49 +148,56 @@ class AutomaticClockWidget : GlanceAppWidget(), KoinComponent {
                 .cornerRadius(25.dp) // Rounded corners like the reference
                 .background(
                     ColorProvider(
-                        day = Color.White,
-                        night = Color.Black
+                        day = Color.White.copy(alpha = 0.8f),
+                        night = Color.Black.copy(alpha = 0.8f)
                     )
-                )
-                .padding(4.dp) // Inner padding for content
+                ) // Inner padding for content
 
         ) {
             Text(
                 storedClock.name, style = TextStyle(
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.SansSerif,
                     color = ColorProvider(
                         day = Color.Black,
                         night = Color.White
                     ),
+                    textAlign = TextAlign.Center
                 ),
+                modifier = GlanceModifier.fillMaxWidth(),
                 maxLines = 1
             )
             Spacer(GlanceModifier.height(2.dp))
             Box(
                 modifier = GlanceModifier
                     .fillMaxWidth()
-                    .height(26.dp),
-                contentAlignment = Alignment.Center
-            ) {
+                    .height(34.dp),
+                contentAlignment = Alignment.Center,
+
+                ) {
                 AndroidRemoteViews(
                     RemoteViews(
                         packageName,
                         R.layout.clock
                     ).apply {
                         setString(R.id.clock, "setTimeZone", storedClock.timezoneId)
-                    }
+                    },
+                    modifier = GlanceModifier.fillMaxWidth(),
                 )
             }
             Spacer(GlanceModifier.height(2.dp))
             Text(
-                disp.day,
+                disp.day.lowercase(),
                 style = TextStyle(
-                    fontSize = 11.sp,
+                    fontSize = 13.sp,
                     color = ColorProvider(
                         day = Color.Black,
                         night = Color.White
                     ),
+                    fontFamily = FontFamily.SansSerif,
+                    textAlign = TextAlign.Center
                 ),
+                modifier = GlanceModifier.fillMaxWidth(),
                 maxLines = 1,
             )
         }
