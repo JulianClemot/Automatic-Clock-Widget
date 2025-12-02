@@ -2,28 +2,24 @@ package com.julian.automaticclockwidget
 
 import android.os.Build
 import android.os.Bundle
-import android.content.Intent
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,7 +27,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.glance.appwidget.GlanceAppWidgetManager
@@ -73,7 +68,6 @@ class MainActivity : ComponentActivity() {
                     ) {
                         val state by viewModel.uiState.collectAsStateWithLifecycle()
                         Button(onClick = {
-                            // Trigger manual refresh via ViewModel so we can immediately update the widget on success
                             viewModel.onEvent(MainUiEvent.ManualRefresh)
                         }) {
                             Text("Refresh now and update widget")
@@ -85,7 +79,11 @@ class MainActivity : ComponentActivity() {
                             Row(modifier = Modifier.fillMaxWidth()) {
                                 Text(text = msg, modifier = Modifier.weight(1f))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Button(onClick = { viewModel.onEvent(MainUiEvent.DismissError) }) { Text("Dismiss") }
+                                Button(onClick = { viewModel.onEvent(MainUiEvent.DismissError) }) {
+                                    Text(
+                                        "Dismiss"
+                                    )
+                                }
                             }
                         }
 
@@ -95,7 +93,11 @@ class MainActivity : ComponentActivity() {
                             Row(modifier = Modifier.fillMaxWidth()) {
                                 Text(text = msg, modifier = Modifier.weight(1f))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Button(onClick = { viewModel.onEvent(MainUiEvent.DismissSuccess) }) { Text("OK") }
+                                Button(onClick = { viewModel.onEvent(MainUiEvent.DismissSuccess) }) {
+                                    Text(
+                                        "OK"
+                                    )
+                                }
                             }
                         }
 
@@ -127,12 +129,24 @@ class MainActivity : ComponentActivity() {
                         // List URLs with Select/Delete
                         state.urls.forEach { url ->
                             Row(modifier = Modifier.fillMaxWidth()) {
-                                val isSelected = state.selected?.equals(url, ignoreCase = true) == true
-                                Text(text = if (isSelected) "${url} (selected)" else url, modifier = Modifier.weight(1f))
+                                val isSelected =
+                                    state.selected?.equals(url, ignoreCase = true) == true
+                                Text(
+                                    text = if (isSelected) "${url} (selected)" else url,
+                                    modifier = Modifier.weight(1f)
+                                )
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Button(onClick = { viewModel.onEvent(MainUiEvent.SelectUrl(url)) }) { Text("Select") }
+                                Button(onClick = { viewModel.onEvent(MainUiEvent.SelectUrl(url)) }) {
+                                    Text(
+                                        "Select"
+                                    )
+                                }
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Button(onClick = { viewModel.onEvent(MainUiEvent.DeleteUrl(url)) }) { Text("Delete") }
+                                Button(onClick = { viewModel.onEvent(MainUiEvent.DeleteUrl(url)) }) {
+                                    Text(
+                                        "Delete"
+                                    )
+                                }
                             }
                             Spacer(modifier = Modifier.height(4.dp))
                         }

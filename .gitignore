@@ -25,3 +25,6 @@ local.properties
 .idea/markdown.xml
 .idea/migrations.xml
 .idea/runConfigurations.xml
+
+# Sentry Config File
+sentry.properties
