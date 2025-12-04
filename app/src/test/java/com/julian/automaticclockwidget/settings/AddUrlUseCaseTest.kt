@@ -9,25 +9,33 @@ import org.junit.Test
 class AddUrlUseCaseTest {
 
     @Test
-    fun addUrl_appends_dedups_trims_and_selects_last() {
+    fun `given urls added with spaces and duplicates then list is deduped trimmed and last is selected`() {
+        // Given
         val repo = FakeUrlPreferencesRepository()
         val add = AddUrlUseCase(repo)
         val get = GetUrlStateUseCase(repo)
 
+        // When
         add.addUrl("  https://a  ")
         add.addUrl("https://b")
         add.addUrl("HTTPS://A") // duplicate different case -> moves to end and becomes selected
 
+        // Then
         val state = get.getUrlState().getOrThrow()
         assertEquals(listOf("https://b", "HTTPS://A"), state.urls)
         assertEquals("HTTPS://A", state.selected)
     }
 
     @Test
-    fun addUrl_blank_returns_InvalidInput_error() {
+    fun `given blank url then addUrl fails with InvalidInput and state remains empty`() {
+        // Given
         val repo = FakeUrlPreferencesRepository()
         val add = AddUrlUseCase(repo)
+
+        // When
         val result = add.addUrl("   ")
+
+        // Then
         val error = result.exceptionOrNull()
         assertTrue(error is SettingsError.InvalidInput)
         val state = GetUrlStateUseCase(repo).getUrlState().getOrThrow()

@@ -7,7 +7,26 @@ import org.junit.Test
 class SelectUrlUseCaseTest {
 
     @Test
-    fun selectUrl_changes_selection_if_exists_else_ignored() {
+    fun `given existing url when selecting then selection is updated`() {
+        // Given
+        val repo = FakeUrlPreferencesRepository()
+        val add = AddUrlUseCase(repo)
+        val select = SelectUrlUseCase(repo)
+        val get = GetUrlStateUseCase(repo)
+
+        // When
+        add.addUrl("https://a")
+        add.addUrl("https://b") // selected
+        select.selectUrl("https://a")
+
+        // Then
+        val state = get.getUrlState().getOrThrow()
+        assertEquals("https://a", state.selected)
+    }
+
+    @Test
+    fun `given non existing url when selecting then failure is returned and selection unchanged`() {
+        // Given
         val repo = FakeUrlPreferencesRepository()
         val add = AddUrlUseCase(repo)
         val select = SelectUrlUseCase(repo)
@@ -15,15 +34,13 @@ class SelectUrlUseCaseTest {
 
         add.addUrl("https://a")
         add.addUrl("https://b") // selected
-        select.selectUrl("https://a")
 
-        var state = get.getUrlState().getOrThrow()
-        assertEquals("https://a", state.selected)
-
-        // selecting non-existing should fail
+        // When
         val failure = select.selectUrl("https://c").exceptionOrNull()
+
+        // Then
         requireNotNull(failure)
-        state = get.getUrlState().getOrThrow()
-        assertEquals("https://a", state.selected)
+        val state = get.getUrlState().getOrThrow()
+        assertEquals("https://b", state.selected)
     }
 }

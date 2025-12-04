@@ -8,27 +8,32 @@ import org.junit.Test
 class GetUrlStateUseCaseTest {
 
     @Test
-    fun getUrlState_reflects_urls_and_selected() {
+    fun `given urls added and one selected then state reflects urls and selected`() {
+        // Given
         val repo = FakeUrlPreferencesRepository()
         val add = AddUrlUseCase(repo)
         val select = SelectUrlUseCase(repo)
         val get = GetUrlStateUseCase(repo)
 
+        // When
         add.addUrl("https://a")
         add.addUrl("https://b")
         select.selectUrl("https://a")
 
+        // Then
         val state = get.getUrlState().getOrThrow()
         assertEquals(listOf("https://a", "https://b"), state.urls)
         assertEquals("https://a", state.selected)
     }
 
     @Test
-    fun getUrlState_fallbacks_to_last_when_no_selected_or_mismatch() {
+    fun `given no selected or mismatch then state falls back to last url else null`() {
+        // Given
         val repo = FakeUrlPreferencesRepository()
         val add = AddUrlUseCase(repo)
         val get = GetUrlStateUseCase(repo)
 
+        // When
         add.addUrl("https://a")
         add.addUrl("https://b") // selected becomes b
         // Simulate mismatch by deleting selected and not reselecting

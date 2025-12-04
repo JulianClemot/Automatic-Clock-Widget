@@ -24,7 +24,8 @@ import kotlin.time.ExperimentalTime
 class RefreshTimezonesUseCaseTest {
 
     @Test
-    fun preserves_order_of_successes_even_when_some_fail() = runBlocking {
+    fun `given mixed airport resolutions then saved clocks preserve order of successes only`() = runBlocking {
+        // Given
         val urlRepo = FakeUrlPreferencesRepository().apply {
             addUrl("https://ics"); selectUrl("https://ics")
         }
@@ -60,7 +61,11 @@ class RefreshTimezonesUseCaseTest {
         val getUpcomingUC = GetUpcomingClocksUseCase(downloadUC, airportUC)
 
         val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC)
+        
+        // When
         val res = sut.refreshNow()
+
+        // Then
         assertTrue(res.isSuccess)
 
         val saved = clocksRepo.getClocks().getOrThrow()
@@ -69,7 +74,8 @@ class RefreshTimezonesUseCaseTest {
     }
 
     @Test
-    fun refresh_success_saves_mapped_clocks() = runBlocking {
+    fun `given successful upcoming clocks then repository saves mapped clocks`() = runBlocking {
+        // Given
         val urlRepo = FakeUrlPreferencesRepository().apply {
             addUrl("https://ics"); selectUrl("https://ics")
         }
@@ -91,7 +97,11 @@ class RefreshTimezonesUseCaseTest {
         val getUpcomingUC = GetUpcomingClocksUseCase(downloadUC, airportUC)
 
         val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC)
+        
+        // When
         val res = sut.refreshNow()
+
+        // Then
         assertTrue(res.isSuccess)
 
         val saved = clocksRepo.getClocks().getOrThrow()
@@ -103,7 +113,8 @@ class RefreshTimezonesUseCaseTest {
     }
 
     @Test
-    fun no_selected_url_is_noop_success_and_does_not_modify_repo() = runBlocking {
+    fun `given no selected url then refresh is a no-op success and repository unchanged`() = runBlocking {
+        // Given
         val urlRepo = FakeUrlPreferencesRepository() // no urls selected
         val clocksRepo = FakeClocksPreferencesRepository().apply {
             saveClocks(listOf(StoredClock("ABC", "X", "UTC")))
@@ -114,14 +125,19 @@ class RefreshTimezonesUseCaseTest {
         val getUpcomingUC = GetUpcomingClocksUseCase(DownloadCalendarUseCase(calRepo), GetAirportTimezoneUseCase(airRepo))
 
         val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC)
+        
+        // When
         val res = sut.refreshNow()
+
+        // Then
         assertTrue(res.isSuccess)
         val saved = clocksRepo.getClocks().getOrThrow()
         assertEquals(listOf(StoredClock("ABC", "X", "UTC")), saved)
     }
 
     @Test
-    fun failure_from_getUpcoming_propagates_and_repo_unchanged() = runBlocking {
+    fun `given failure from getUpcoming then refresh forwards failure and repository unchanged`() = runBlocking {
+        // Given
         val urlRepo = FakeUrlPreferencesRepository().apply {
             addUrl("https://ics"); selectUrl("https://ics")
         }
@@ -133,7 +149,11 @@ class RefreshTimezonesUseCaseTest {
         val getUpcomingUC = GetUpcomingClocksUseCase(DownloadCalendarUseCase(calRepo), GetAirportTimezoneUseCase(airRepo))
 
         val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC)
+        
+        // When
         val res = sut.refreshNow()
+
+        // Then
         assertTrue(res.isFailure)
         val saved = clocksRepo.getClocks().getOrThrow()
         assertEquals(listOf(StoredClock("DEF", "Y", "UTC")), saved)

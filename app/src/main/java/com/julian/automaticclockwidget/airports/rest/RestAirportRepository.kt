@@ -2,10 +2,14 @@ package com.julian.automaticclockwidget.airports.rest
 
 import com.julian.automaticclockwidget.BuildConfig
 import com.julian.automaticclockwidget.airports.AirportsRepository
+import com.julian.automaticclockwidget.core.AppError
+import com.julian.automaticclockwidget.core.AirportError
+import com.julian.automaticclockwidget.core.UnknownError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.Request
+import java.io.IOException
 
 class RestAirportRepository(private val client: okhttp3.OkHttpClient) : AirportsRepository {
 
@@ -17,11 +21,26 @@ class RestAirportRepository(private val client: okhttp3.OkHttpClient) : Airports
 
         val request = requestBuilder.build()
         runCatching {
-            val response = client.newCall(request).execute()
-            val restResult = Json.decodeFromString<RestAirport>(response.body.string())
-            restResult.toAirport()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    if (response.code == 404) {
+                        throw AirportError.NotFound("Airport $iataCode not found")
+                    } else {
+                        throw AirportError.Network("HTTP ${response.code}: ${response.message}")
+                    }
+                }
+                val body = response.body.string()
+                val restResult = Json.decodeFromString<RestAirport>(body)
+                restResult.toAirport()
+            }
+        }.recoverCatching { t ->
+            when (t) {
+                is AppError -> throw t
+                is IOException -> throw AirportError.Network("Network error while requesting airport $iataCode", t)
+                is IllegalArgumentException, is IllegalStateException -> throw UnknownError("Invalid airport response", t)
+                else -> throw UnknownError(cause = t)
+            }
         }
-
     }
 
     companion object {

@@ -8,7 +8,7 @@ import org.junit.Test
 class ClockDisplayFormatterTest {
 
     @Test
-    fun format_produces_expected_time_and_day_for_timezones() {
+    fun `given fixed instant then formatter returns expected time and day for known timezones`() {
         // 2025-01-05T12:34:00Z
         val instant = Instant.parse("2025-01-05T12:34:00Z")
 
@@ -24,7 +24,7 @@ class ClockDisplayFormatterTest {
     }
 
     @Test
-    fun format_invalid_timezone_returns_fallback() {
+    fun `given invalid timezone then formatter returns fallback placeholders`() {
         val instant = Instant.parse("2025-01-05T00:00:00Z")
         val x = ClockDisplayFormatter.format("X", "Not/AZone", instant)
         assertEquals("--:--", x.time)

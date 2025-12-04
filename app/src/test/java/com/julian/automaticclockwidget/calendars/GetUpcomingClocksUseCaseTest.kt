@@ -16,8 +16,8 @@ import kotlin.time.ExperimentalTime
 class GetUpcomingClocksUseCaseTest {
 
     @Test
-    fun success_filters_events_and_aggregates_successful_airports_only() = runBlocking {
-        // Arrange calendar with mixed events
+    fun `given mixed events and airport lookups then returns only successful airports preserving order`() = runBlocking {
+        // Given: calendar with mixed events
         val start = LocalDateTime(2025, 1, 10, 12, 0, 0)
         val events = Events(
             listOf(
@@ -45,10 +45,10 @@ class GetUpcomingClocksUseCaseTest {
 
         val uc = GetUpcomingClocksUseCase(downloadUC, airportUC)
 
-        // Act
+        // When
         val result = uc.getUpcomingClocks("https://ics", start)
 
-        // Assert
+        // Then
         assertTrue(result.isSuccess)
         val airports = result.getOrNull()
         // Only JFK should be included (LHR failed) -> list size 1
@@ -57,7 +57,8 @@ class GetUpcomingClocksUseCaseTest {
     }
 
     @Test
-    fun failure_is_propagated_from_calendar_download() = runBlocking {
+    fun `given calendar download fails then use case forwards failure`() = runBlocking {
+        // Given
         val fakeCalRepo = FakeCalendarsRepository().apply {
             result = Result.failure(Exception("download failed"))
         }
@@ -68,7 +69,10 @@ class GetUpcomingClocksUseCaseTest {
 
         val uc = GetUpcomingClocksUseCase(downloadUC, airportUC)
 
+        // When
         val result = uc.getUpcomingClocks("https://ics", LocalDateTime(2025, 1, 10, 0, 0, 0))
+
+        // Then
         assertTrue(result.isFailure)
     }
 }

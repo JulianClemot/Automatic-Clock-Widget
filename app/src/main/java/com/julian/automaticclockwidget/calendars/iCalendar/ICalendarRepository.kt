@@ -10,12 +10,28 @@ import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.io.IOException
 import kotlin.time.ExperimentalTime
 
 class ICalendarRepository(private val client: OkHttpClient) : CalendarsRepository {
 
     override suspend fun getCalendar(uri: String) = runCatching {
-        parseCalendar(downloadCalendar(uri))
+        val body = downloadCalendar(uri)
+        parseCalendar(body)
+    }.recoverCatching { t ->
+        when (t) {
+            is com.julian.automaticclockwidget.core.CalendarError -> throw t
+            is IOException -> throw com.julian.automaticclockwidget.core.CalendarError.Network(
+                message = "Network error while downloading calendar",
+                cause = t
+            )
+            is IllegalArgumentException, is IllegalStateException ->
+                throw com.julian.automaticclockwidget.core.CalendarError.Parse(
+                    message = "Invalid iCalendar content",
+                    cause = t
+                )
+            else -> throw com.julian.automaticclockwidget.core.UnknownError(cause = t)
+        }
     }
 
     private suspend fun downloadCalendar(uri: String) = withContext(Dispatchers.IO) {
@@ -26,7 +42,10 @@ class ICalendarRepository(private val client: OkHttpClient) : CalendarsRepositor
 
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                throw Throwable(response.message)
+                throw com.julian.automaticclockwidget.core.CalendarError.HttpFailure(
+                    code = response.code,
+                    message = response.message
+                )
             }
             response.body.string()
         }

@@ -7,7 +7,8 @@ import org.junit.Test
 class ClearClocksUseCaseTest {
 
     @Test
-    fun clear_removes_all_stored_clocks() {
+    fun `given stored clocks when clearing then repository becomes empty`() {
+        // Given
         val repo = FakeClocksPreferencesRepository()
         // seed some clocks
         repo.saveClocks(
@@ -18,9 +19,12 @@ class ClearClocksUseCaseTest {
         )
 
         val uc = ClearClocksUseCase(repo)
-        val res = uc.clearClocks()
-        assert(res.isSuccess)
 
+        // When
+        val res = uc.clearClocks()
+
+        // Then
+        assert(res.isSuccess)
         val after = repo.getClocks().getOrThrow()
         assertEquals(emptyList<StoredClock>(), after)
     }

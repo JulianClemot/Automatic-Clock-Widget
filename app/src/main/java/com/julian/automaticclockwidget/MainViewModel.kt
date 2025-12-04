@@ -1,6 +1,7 @@
 package com.julian.automaticclockwidget
 
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.julian.automaticclockwidget.core.AppError
 import com.julian.automaticclockwidget.core.SettingsError
 import com.julian.automaticclockwidget.settings.AddUrlUseCase
@@ -9,11 +10,13 @@ import com.julian.automaticclockwidget.settings.GetUrlStateUseCase
 import com.julian.automaticclockwidget.settings.SelectUrlUseCase
 import com.julian.automaticclockwidget.clocks.ClearClocksUseCase
 import com.julian.automaticclockwidget.clocks.RefreshTimezonesUseCase
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import com.julian.automaticclockwidget.core.AirportError
+import com.julian.automaticclockwidget.core.CalendarError
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.onStart
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 class MainViewModel(
@@ -26,14 +29,23 @@ class MainViewModel(
     private val widgetUpdateUseCase: com.julian.automaticclockwidget.widgets.WidgetUpdateUseCase,
 ) : ViewModel() { 
 
-    private val vmScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val initialState = MainUiState(
+        urls = emptyList(),
+        selected = null,
+        errorMessage = null,
+        successMessage = null,
+        perMinuteTickEnabled = false,
+        requestExactAlarmPermission = false
+    )
 
-    private val _uiState = MutableStateFlow(MainUiState(emptyList(), null, null, null, perMinuteTickEnabled = false, requestExactAlarmPermission = false))
+    private val _uiState = MutableStateFlow(initialState)
     val uiState: StateFlow<MainUiState> = _uiState
-
-    init {
-        refreshUrls()
-    }
+        .onStart { refreshUrls() }
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = initialState
+        )
 
     private fun refreshUrls() {
         getUrlStateUseCase.getUrlState().fold(
@@ -69,7 +81,7 @@ class MainViewModel(
                         clearClocksUseCase.clearClocks().fold(
                             onSuccess = {
                                 // Then refresh timezones and store them
-                                vmScope.launch {
+                                viewModelScope.launch {
                                     val res = refreshTimezonesUseCase.refreshNow()
                                     res.onFailure { err ->
                                         _uiState.value = _uiState.value.copy(errorMessage = mapErrorToMessage(err))
@@ -84,9 +96,8 @@ class MainViewModel(
                     onFailure = { err -> _uiState.value = _uiState.value.copy(errorMessage = mapErrorToMessage(err)) }
                 )
             }
-            MainUiEvent.LoadUrls -> refreshUrls()
             is MainUiEvent.ManualRefresh -> {
-                vmScope.launch {
+                viewModelScope.launch {
                     val res = refreshTimezonesUseCase.refreshNow()
                     res.fold(
                         onSuccess = {
@@ -123,6 +134,10 @@ class MainViewModel(
         is SettingsError.InvalidInput -> "Invalid URL"
         is SettingsError.NotFound -> "URL not found"
         is SettingsError.StorageFailure -> "A storage error occurred"
+        is CalendarError.Network -> "Network unavailable"
+        is CalendarError.Parse -> "Invalid calendar format"
+        is AirportError.NotFound -> "Airport not found"
+        is AirportError.Network -> "Network unavailable"
         is AppError -> error.message ?: "Unexpected error"
         else -> error.message ?: "Unexpected error"
     }
@@ -141,7 +156,6 @@ sealed interface MainUiEvent {
     data class AddUrl(val url: String) : MainUiEvent
     data class DeleteUrl(val url: String) : MainUiEvent
     data class SelectUrl(val url: String) : MainUiEvent
-    data object LoadUrls : MainUiEvent
     /** User-initiated manual refresh: fetch, save clocks, and immediately update widgets. */
     data object ManualRefresh : MainUiEvent
     data object DismissError : MainUiEvent
