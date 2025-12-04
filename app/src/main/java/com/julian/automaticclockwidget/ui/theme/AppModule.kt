@@ -18,9 +18,8 @@ import com.julian.automaticclockwidget.settings.UrlPreferencesRepository
 import com.julian.automaticclockwidget.settings.UrlPreferencesRepositoryImpl
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
-import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
-import kotlin.time.ExperimentalTime
 
 val appModule = module {
 
