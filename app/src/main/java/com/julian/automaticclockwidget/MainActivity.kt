@@ -21,6 +21,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,7 +60,27 @@ class MainActivity : ComponentActivity() {
         }
         setContent {
             AutomaticClockWidgetTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                val snackbarHostState = remember { SnackbarHostState() }
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+                LaunchedEffect(state.errorMessage) {
+                    state.errorMessage?.let {
+                        snackbarHostState.showSnackbar(it)
+                        viewModel.onEvent(MainUiEvent.DismissError)
+                    }
+                }
+
+                LaunchedEffect(state.successMessage) {
+                    state.successMessage?.let {
+                        snackbarHostState.showSnackbar(it)
+                        viewModel.onEvent(MainUiEvent.DismissSuccess)
+                    }
+                }
+
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    snackbarHost = { SnackbarHost(snackbarHostState) }
+                ) { innerPadding ->
                     Column(
                         modifier = Modifier
                             .padding(innerPadding)
@@ -66,39 +89,10 @@ class MainActivity : ComponentActivity() {
                         verticalArrangement = Arrangement.Center,
                         horizontalAlignment = CenterHorizontally,
                     ) {
-                        val state by viewModel.uiState.collectAsStateWithLifecycle()
                         Button(onClick = {
                             viewModel.onEvent(MainUiEvent.ManualRefresh)
                         }) {
                             Text("Refresh now and update widget")
-                        }
-
-                        // Error banner
-                        state.errorMessage?.let { msg ->
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                Text(text = msg, modifier = Modifier.weight(1f))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Button(onClick = { viewModel.onEvent(MainUiEvent.DismissError) }) {
-                                    Text(
-                                        "Dismiss"
-                                    )
-                                }
-                            }
-                        }
-
-                        // Success banner
-                        state.successMessage?.let { msg ->
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Row(modifier = Modifier.fillMaxWidth()) {
-                                Text(text = msg, modifier = Modifier.weight(1f))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Button(onClick = { viewModel.onEvent(MainUiEvent.DismissSuccess) }) {
-                                    Text(
-                                        "OK"
-                                    )
-                                }
-                            }
                         }
 
                         // URL Management UI
