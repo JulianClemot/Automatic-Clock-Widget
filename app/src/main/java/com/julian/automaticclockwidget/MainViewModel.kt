@@ -1,5 +1,6 @@
 package com.julian.automaticclockwidget
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.julian.automaticclockwidget.core.AppError
@@ -12,6 +13,7 @@ import com.julian.automaticclockwidget.clocks.ClearClocksUseCase
 import com.julian.automaticclockwidget.clocks.RefreshTimezonesUseCase
 import com.julian.automaticclockwidget.core.AirportError
 import com.julian.automaticclockwidget.core.CalendarError
+import com.julian.automaticclockwidget.widgets.WidgetUpdateUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,8 +28,9 @@ class MainViewModel(
     private val getUrlStateUseCase: GetUrlStateUseCase,
     private val clearClocksUseCase: ClearClocksUseCase,
     private val refreshTimezonesUseCase: RefreshTimezonesUseCase,
-    private val widgetUpdateUseCase: com.julian.automaticclockwidget.widgets.WidgetUpdateUseCase,
-) : ViewModel() { 
+    private val widgetUpdateUseCase: WidgetUpdateUseCase,
+    private val appContext: Context,
+) : ViewModel() {
 
     private val initialState = MainUiState(
         urls = emptyList(),
@@ -103,7 +106,7 @@ class MainViewModel(
                         onSuccess = {
                             // Immediately refresh widgets so UI reflects new clocks
                             try {
-                                widgetUpdateUseCase.updateAll()
+                                widgetUpdateUseCase.updateAll(appContext)
                                 _uiState.value = _uiState.value.copy(
                                     successMessage = "Clocks updated and widget refreshed",
                                     errorMessage = null

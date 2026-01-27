@@ -1,6 +1,6 @@
 package com.julian.automaticclockwidget
 
-import android.os.Build
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -18,11 +18,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -32,12 +32,9 @@ import androidx.compose.ui.Alignment.Companion.CenterHorizontally
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.lifecycleScope
+import com.julian.automaticclockwidget.airplanemode.AirplaneModeMonitorService
 import com.julian.automaticclockwidget.ui.theme.AutomaticClockWidgetTheme
-import com.julian.automaticclockwidget.widgets.AutomaticClockWidgetReceiver
-import kotlinx.coroutines.launch
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
@@ -51,13 +48,10 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        lifecycleScope.launch {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
-                GlanceAppWidgetManager(this@MainActivity).setWidgetPreviews(
-                    AutomaticClockWidgetReceiver::class
-                )
-            }
-        }
+        // Start foreground service
+        val serviceIntent = Intent(this, AirplaneModeMonitorService::class.java)
+        startForegroundService(serviceIntent)
+
         setContent {
             AutomaticClockWidgetTheme {
                 val snackbarHostState = remember { SnackbarHostState() }

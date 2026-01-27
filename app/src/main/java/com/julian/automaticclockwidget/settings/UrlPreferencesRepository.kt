@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
+import androidx.core.content.edit
 
 interface UrlPreferencesRepository {
     fun getUrls(): Result<List<String>>
@@ -52,7 +53,7 @@ class UrlPreferencesRepositoryImpl(
             // If we deleted the selected URL, select the last one if any, otherwise clear selection
             val newSelection = current.lastOrNull()
             if (newSelection == null) {
-                prefs.edit().remove(KEY_SELECTED_URL).apply()
+                prefs.edit { remove(KEY_SELECTED_URL) }
             } else {
                 selectUrl(newSelection).getOrElse { throw it }
             }
@@ -73,12 +74,12 @@ class UrlPreferencesRepositoryImpl(
     override fun selectUrl(url: String): Result<Unit> = runCatching {
         val exists = getUrls().getOrElse { throw it }.any { it.equals(url, ignoreCase = true) }
         if (!exists) throw com.julian.automaticclockwidget.core.SettingsError.NotFound("URL not found: $url")
-        prefs.edit().putString(KEY_SELECTED_URL, url).apply()
+        prefs.edit { putString(KEY_SELECTED_URL, url) }
     }
 
     private fun saveUrls(urls: List<String>) {
         val json = Json.encodeToString(urls)
-        prefs.edit().putString(KEY_URLS_JSON, json).apply()
+        prefs.edit { putString(KEY_URLS_JSON, json) }
     }
 
     companion object {

@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">AutomaticClockWidget</string>
+    <string name="special_use_explanation">Service to monitor airplane mode change in order to update widgets</string>
 </resources>

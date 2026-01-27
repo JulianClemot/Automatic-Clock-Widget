@@ -21,6 +21,7 @@ import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
 import androidx.glance.color.ColorProvider
+import androidx.glance.currentState
 import androidx.glance.layout.Alignment
 import androidx.glance.layout.Alignment.Companion.CenterHorizontally
 import androidx.glance.layout.Alignment.Companion.CenterVertically
@@ -41,28 +42,24 @@ import androidx.glance.text.TextStyle
 import com.julian.automaticclockwidget.R
 import com.julian.automaticclockwidget.clocks.ClockDisplayFormatter
 import com.julian.automaticclockwidget.clocks.StoredClock
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import kotlin.time.Instant
 
-class AutomaticClockWidget : GlanceAppWidget(), KoinComponent {
+class AutomaticClockWidget : GlanceAppWidget() {
 
-    private val clocksRepo: com.julian.automaticclockwidget.clocks.ClocksPreferencesRepository by inject()
+    override val stateDefinition = AutomaticClockGlanceStateDefinition
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         provideContent {
             GlanceTheme {
-                ClockWidgetContent()
+                val state = currentState<AutomaticClockWidgetUiState>()
+                ClockWidgetContent(state)
             }
         }
     }
 
     @Composable
-    private fun ClockWidgetContent() {
+    private fun ClockWidgetContent(state: AutomaticClockWidgetUiState = AutomaticClockWidgetUiState.Empty) {
         val size = LocalSize.current
-
-        // Load stored clocks and map to display values
-        val stored = clocksRepo.getClocks().getOrElse { emptyList() }
 
         // Calculate how many clocks can fit based on widget size
         val clockWidth = 90.dp
@@ -72,34 +69,36 @@ class AutomaticClockWidget : GlanceAppWidget(), KoinComponent {
         val maxRows = maxOf(1, (size.height / clockHeight).toInt())
         val maxClocks = clocksPerRow * maxRows
 
-        // Take only the clocks that can fit
-        val visibleClocks = stored.take(maxClocks)
         Column(
             modifier = GlanceModifier
                 .fillMaxSize(),
             verticalAlignment = CenterVertically,
             horizontalAlignment = CenterHorizontally
         ) {
-            if (visibleClocks.isEmpty()) {
-                EmptyClocks()
-            } else {
-                // Group clocks into rows
-                val rows = visibleClocks.chunked(clocksPerRow)
-                rows.forEach { rowClocks ->
-                    Row(
-                        modifier = GlanceModifier.fillMaxWidth(),
-                        horizontalAlignment = CenterHorizontally,
-                        verticalAlignment = CenterVertically,
-                    ) {
-                        rowClocks.forEach { storedClock ->
-                            Clock(storedClock = storedClock, clockWidth, clockHeight)
-                            if (rowClocks.last() != storedClock) {
-                                Spacer(GlanceModifier.width(4.dp))
+            when (state) {
+                is AutomaticClockWidgetUiState.Empty -> EmptyClocks()
+                is AutomaticClockWidgetUiState.Loaded -> {
+                    if (state.clocks.isEmpty()) return@Column EmptyClocks()
+
+                    val visibleClocks = state.clocks.take(maxClocks)
+                    // Group clocks into rows
+                    val rows = visibleClocks.chunked(clocksPerRow)
+                    rows.forEach { rowClocks ->
+                        Row(
+                            modifier = GlanceModifier.fillMaxWidth(),
+                            horizontalAlignment = CenterHorizontally,
+                            verticalAlignment = CenterVertically,
+                        ) {
+                            rowClocks.forEach { storedClock ->
+                                Clock(storedClock = storedClock, clockWidth, clockHeight)
+                                if (rowClocks.last() != storedClock) {
+                                    Spacer(GlanceModifier.width(4.dp))
+                                }
                             }
                         }
-                    }
-                    if (rows.last() != rowClocks) {
-                        Spacer(GlanceModifier.height(2.dp))
+                        if (rows.last() != rowClocks) {
+                            Spacer(GlanceModifier.height(2.dp))
+                        }
                     }
                 }
             }

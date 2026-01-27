@@ -5,6 +5,8 @@ package com.julian.automaticclockwidget.calendars.iCalendar
 import biweekly.Biweekly
 import com.julian.automaticclockwidget.calendars.Calendar
 import com.julian.automaticclockwidget.calendars.CalendarsRepository
+import com.julian.automaticclockwidget.core.CalendarError
+import com.julian.automaticclockwidget.core.UnknownError
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
@@ -20,17 +22,17 @@ class ICalendarRepository(private val client: OkHttpClient) : CalendarsRepositor
         parseCalendar(body)
     }.recoverCatching { t ->
         when (t) {
-            is com.julian.automaticclockwidget.core.CalendarError -> throw t
-            is IOException -> throw com.julian.automaticclockwidget.core.CalendarError.Network(
+            is CalendarError -> throw t
+            is IOException -> throw CalendarError.Network(
                 message = "Network error while downloading calendar",
                 cause = t
             )
             is IllegalArgumentException, is IllegalStateException ->
-                throw com.julian.automaticclockwidget.core.CalendarError.Parse(
+                throw CalendarError.Parse(
                     message = "Invalid iCalendar content",
                     cause = t
                 )
-            else -> throw com.julian.automaticclockwidget.core.UnknownError(cause = t)
+            else -> throw UnknownError(cause = t)
         }
     }
 
@@ -42,7 +44,7 @@ class ICalendarRepository(private val client: OkHttpClient) : CalendarsRepositor
 
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                throw com.julian.automaticclockwidget.core.CalendarError.HttpFailure(
+                throw CalendarError.HttpFailure(
                     code = response.code,
                     message = response.message
                 )

@@ -10,9 +10,3 @@
     android:minResizeHeight="85dp"
     android:minHeight="85dp"
     android:widgetCategory="home_screen"/>
-
-    <!--
-
-
-    android:maxResizeWidth="500dp"
-    android:maxResizeHeight="400dp"-->

@@ -1,50 +1,44 @@
 @file:OptIn(kotlin.time.ExperimentalTime::class)
+
 package com.julian.automaticclockwidget.workers
 
 import android.content.Context
 import android.util.Log
-import androidx.work.CoroutineWorker
-import androidx.work.WorkerParameters
 import androidx.work.Constraints
+import androidx.work.CoroutineWorker
 import androidx.work.NetworkType
+import androidx.work.WorkerParameters
+import com.julian.automaticclockwidget.clocks.ClocksPreferencesRepository
 import com.julian.automaticclockwidget.clocks.RefreshTimezonesUseCase
-import kotlinx.datetime.DatePeriod
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.minus
-import kotlinx.datetime.toLocalDateTime
-import kotlin.time.Clock
-import androidx.glance.appwidget.GlanceAppWidgetManager
-import com.julian.automaticclockwidget.widgets.AutomaticClockWidget
-import com.julian.automaticclockwidget.settings.UrlPreferencesRepository
-import org.koin.core.context.GlobalContext
+import com.julian.automaticclockwidget.widgets.WidgetUpdateUseCase
 
 class CalendarRefreshWorker(
-    appContext: Context,
-    params: WorkerParameters
+    val appContext: Context,
+    params: WorkerParameters,
+    private val clocksRepository: ClocksPreferencesRepository,
+    private val refreshUseCase: RefreshTimezonesUseCase,
+    private val appUpdateUseCase: WidgetUpdateUseCase,
 ) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result {
-        val refreshUseCase: RefreshTimezonesUseCase = GlobalContext.get().get()
+        Log.i(TAG, "CalendarRefreshWorker: start refresh")
         return try {
-            val result = refreshUseCase.refreshNow()
-            result.fold(
-                onSuccess = {
-                    Log.i(TAG, "CalendarRefreshWorker: refresh success; clocks saved")
-                    // Trigger widget update
-                    val context = applicationContext
-                    val manager = GlanceAppWidgetManager(context)
-                    val ids = manager.getGlanceIds(AutomaticClockWidget::class.java)
-                    val widget = AutomaticClockWidget()
-                    for (id in ids) {
-                        widget.update(context, id)
+            refreshUseCase.refreshNow()
+                .map {
+                    Log.i(TAG, "CalendarRefreshWorker: refresh success; timezones refreshed")
+                }.mapCatching { clocksRepository.getClocks().getOrThrow() }.fold(
+                    onSuccess = { clocks ->
+                        Log.i(TAG, "CalendarRefreshWorker: refresh success; clocks saved")
+                        // Trigger widget update
+                        appUpdateUseCase.updateAll(appContext)
+                        Log.i(TAG, "CalendarRefreshWorker: widget updated successfully")
+                        Result.success()
+                    },
+                    onFailure = { err ->
+                        Log.e(TAG, "CalendarRefreshWorker: refresh failed=${err.message}", err)
+                        Result.retry()
                     }
-                    Result.success()
-                },
-                onFailure = { err ->
-                    Log.e(TAG, "CalendarRefreshWorker: refresh failed=${err.message}", err)
-                    Result.retry()
-                }
-            )
+                )
         } catch (t: Throwable) {
             Log.e(TAG, "CalendarRefreshWorker: unexpected error=${t.message}", t)
             Result.retry()
@@ -52,11 +46,11 @@ class CalendarRefreshWorker(
     }
 
     companion object {
-        private const val TAG = "CalendarRefreshWorker"
-        const val UNIQUE_WORK_NAME = "CalendarRefreshWorker"
+        private const val TAG = "AirplaneModeReceiver"
+        const val UNIQUE_ONE_TIME_WORK_NAME = "CalendarRefreshWorker_OneTime"
 
-        fun unmeteredNetworkConstraints(): Constraints = Constraints.Builder()
-            .setRequiredNetworkType(NetworkType.UNMETERED)
+        fun setNetworkConstraints(): Constraints = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
             .build()
     }
 }
