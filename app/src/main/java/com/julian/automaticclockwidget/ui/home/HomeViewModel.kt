@@ -1,4 +1,4 @@
-package com.julian.automaticclockwidget
+package com.julian.automaticclockwidget.ui.home
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -21,7 +21,7 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class MainViewModel(
+class HomeViewModel(
     private val addUrlUseCase: AddUrlUseCase,
     private val deleteUrlUseCase: DeleteUrlUseCase,
     private val selectUrlUseCase: SelectUrlUseCase,
@@ -32,7 +32,7 @@ class MainViewModel(
     private val appContext: Context,
 ) : ViewModel() {
 
-    private val initialState = MainUiState(
+    private val initialState = HomeUiState(
         urls = emptyList(),
         selected = null,
         errorMessage = null,
@@ -42,7 +42,7 @@ class MainViewModel(
     )
 
     private val _uiState = MutableStateFlow(initialState)
-    val uiState: StateFlow<MainUiState> = _uiState
+    val uiState: StateFlow<HomeUiState> = _uiState
         .onStart { refreshUrls() }
         .stateIn(
             scope = viewModelScope,
@@ -61,21 +61,21 @@ class MainViewModel(
         )
     }
 
-    fun onEvent(event: MainUiEvent) {
+    fun onEvent(event: HomeUiEvent) {
         when (event) {
-            is MainUiEvent.AddUrl -> {
+            is HomeUiEvent.AddUrl -> {
                 addUrlUseCase.addUrl(event.url).fold(
                     onSuccess = { refreshUrls() },
                     onFailure = { err -> _uiState.value = _uiState.value.copy(errorMessage = mapErrorToMessage(err)) }
                 )
             }
-            is MainUiEvent.DeleteUrl -> {
+            is HomeUiEvent.DeleteUrl -> {
                 deleteUrlUseCase.deleteUrl(event.url).fold(
                     onSuccess = { refreshUrls() },
                     onFailure = { err -> _uiState.value = _uiState.value.copy(errorMessage = mapErrorToMessage(err)) }
                 )
             }
-            is MainUiEvent.SelectUrl -> {
+            is HomeUiEvent.SelectUrl -> {
                 selectUrlUseCase.selectUrl(event.url).fold(
                     onSuccess = {
                         // Update UI selection state immediately
@@ -99,7 +99,7 @@ class MainViewModel(
                     onFailure = { err -> _uiState.value = _uiState.value.copy(errorMessage = mapErrorToMessage(err)) }
                 )
             }
-            is MainUiEvent.ManualRefresh -> {
+            is HomeUiEvent.ManualRefresh -> {
                 viewModelScope.launch {
                     val res = refreshTimezonesUseCase.refreshNow()
                     res.fold(
@@ -127,8 +127,8 @@ class MainViewModel(
                     )
                 }
             }
-            MainUiEvent.DismissError -> _uiState.value = _uiState.value.copy(errorMessage = null)
-            MainUiEvent.DismissSuccess -> _uiState.value = _uiState.value.copy(successMessage = null)
+            HomeUiEvent.DismissError -> _uiState.value = _uiState.value.copy(errorMessage = null)
+            HomeUiEvent.DismissSuccess -> _uiState.value = _uiState.value.copy(successMessage = null)
 
         }
     }
@@ -146,7 +146,7 @@ class MainViewModel(
     }
 }
 
-data class MainUiState(
+data class HomeUiState(
     val urls: List<String>,
     val selected: String?,
     val errorMessage: String?,
@@ -155,12 +155,12 @@ data class MainUiState(
     val requestExactAlarmPermission: Boolean,
 )
 
-sealed interface MainUiEvent {
-    data class AddUrl(val url: String) : MainUiEvent
-    data class DeleteUrl(val url: String) : MainUiEvent
-    data class SelectUrl(val url: String) : MainUiEvent
+sealed interface HomeUiEvent {
+    data class AddUrl(val url: String) : HomeUiEvent
+    data class DeleteUrl(val url: String) : HomeUiEvent
+    data class SelectUrl(val url: String) : HomeUiEvent
     /** User-initiated manual refresh: fetch, save clocks, and immediately update widgets. */
-    data object ManualRefresh : MainUiEvent
-    data object DismissError : MainUiEvent
-    data object DismissSuccess : MainUiEvent
+    data object ManualRefresh : HomeUiEvent
+    data object DismissError : HomeUiEvent
+    data object DismissSuccess : HomeUiEvent
 }

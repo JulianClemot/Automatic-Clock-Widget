@@ -19,6 +19,7 @@ import com.julian.automaticclockwidget.settings.SettingsPreferencesRepository
 import com.julian.automaticclockwidget.settings.SettingsPreferencesRepositoryImpl
 import com.julian.automaticclockwidget.settings.UrlPreferencesRepository
 import com.julian.automaticclockwidget.settings.UrlPreferencesRepositoryImpl
+import com.julian.automaticclockwidget.ui.home.HomeViewModel
 import com.julian.automaticclockwidget.widgets.GlanceWidgetUpdateUseCase
 import com.julian.automaticclockwidget.widgets.WidgetUpdateUseCase
 import com.julian.automaticclockwidget.workers.CalendarRefreshWorker
@@ -33,8 +34,8 @@ import org.koin.dsl.module
 val appModule = module {
 
     // ViewModel injects URL use cases only (no direct repo, no GetUpcomingClocksUseCase)
-    viewModel<MainViewModel> {
-        MainViewModel(
+    viewModel<HomeViewModel> {
+        HomeViewModel(
             get(), get(), get(), get(), get(), get(), get(), androidApplication()
         )
     }
