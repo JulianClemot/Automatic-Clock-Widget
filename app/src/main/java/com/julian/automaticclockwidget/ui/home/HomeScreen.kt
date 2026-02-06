@@ -41,24 +41,24 @@ fun HomeEntryPoint(viewModel: HomeViewModel) {
 
 @Composable
 fun HomeContent(state: HomeUiState, onEvent: (HomeUiEvent) -> Unit) {
-    val snackbarHostState = remember { SnackbarHostState() }
+    val snackBarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(state.errorMessage) {
         state.errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
+            snackBarHostState.showSnackbar(it)
             onEvent(HomeUiEvent.DismissError)
         }
     }
 
     LaunchedEffect(state.successMessage) {
         state.successMessage?.let {
-            snackbarHostState.showSnackbar(it)
+            snackBarHostState.showSnackbar(it)
             onEvent(HomeUiEvent.DismissSuccess)
         }
     }
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        snackbarHost = { SnackbarHost(snackbarHostState) }
+        snackbarHost = { SnackbarHost(snackBarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier
@@ -105,7 +105,7 @@ fun HomeContent(state: HomeUiState, onEvent: (HomeUiEvent) -> Unit) {
                     val isSelected =
                         state.selected?.equals(url, ignoreCase = true) == true
                     Text(
-                        text = if (isSelected) "${url} (selected)" else url,
+                        text = if (isSelected) "$url (selected)" else url,
                         modifier = Modifier.weight(1f)
                     )
                     Spacer(modifier = Modifier.width(8.dp))

@@ -22,8 +22,6 @@ import com.julian.automaticclockwidget.ui.theme.AutomaticClockWidgetTheme
 import org.koin.androidx.viewmodel.ext.android.viewModel
 
 class MainActivity : ComponentActivity() {
-    val viewModel: HomeViewModel by viewModel()
-
     override fun onResume() {
         super.onResume()
     }
