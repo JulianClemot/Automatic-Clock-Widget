@@ -67,8 +67,9 @@ fun PasteTextField(
         trailingIcon = {
             Row(
                 modifier = Modifier
+                    .padding(end = 8.dp)
                     .clip(RoundedCornerShape(50.dp))
-                    .background(MaterialTheme.colorScheme.primary)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.75f))
                     .clickable {
                         scope.launch {
                             clipboard.getClipEntry()
