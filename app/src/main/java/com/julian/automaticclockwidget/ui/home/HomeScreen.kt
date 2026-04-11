@@ -5,7 +5,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,23 +23,19 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -58,6 +53,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation3.runtime.NavKey
+import com.julian.automaticclockwidget.designsystem.AppSpacing
+import com.julian.automaticclockwidget.designsystem.components.AppBadge
+import com.julian.automaticclockwidget.designsystem.components.AppButton
+import com.julian.automaticclockwidget.designsystem.components.AppCard
+import com.julian.automaticclockwidget.designsystem.components.AppInfoHint
+import com.julian.automaticclockwidget.designsystem.components.AppTextField
+import com.julian.automaticclockwidget.designsystem.components.AppTextButton
+import com.julian.automaticclockwidget.designsystem.components.PasteTextField
 import com.julian.automaticclockwidget.settings.CalendarEntry
 import kotlinx.serialization.Serializable
 
@@ -112,12 +115,13 @@ fun HomeContent(state: HomeUiState, onEvent: (HomeUiEvent) -> Unit) {
     }
 
     if (showAddSheet) {
+        val dismiss = {
+            showAddSheet = false
+            newName = ""
+            newUrl = ""
+        }
         ModalBottomSheet(
-            onDismissRequest = {
-                showAddSheet = false
-                newName = ""
-                newUrl = ""
-            },
+            onDismissRequest = dismiss,
             sheetState = sheetState,
         ) {
             AddCalendarSheetContent(
@@ -127,10 +131,9 @@ fun HomeContent(state: HomeUiState, onEvent: (HomeUiEvent) -> Unit) {
                 onUrlChange = { newUrl = it },
                 onAdd = {
                     onEvent(HomeUiEvent.AddCalendar(newName, newUrl))
-                    showAddSheet = false
-                    newName = ""
-                    newUrl = ""
+                    dismiss()
                 },
+                onDismiss = dismiss,
             )
         }
     }
@@ -148,11 +151,11 @@ fun HomeContent(state: HomeUiState, onEvent: (HomeUiEvent) -> Unit) {
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = AppSpacing.md)
                 .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sm),
         ) {
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(AppSpacing.sm))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -163,17 +166,7 @@ fun HomeContent(state: HomeUiState, onEvent: (HomeUiEvent) -> Unit) {
                     style = MaterialTheme.typography.headlineMedium,
                     fontWeight = FontWeight.Bold,
                 )
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(50),
-                ) {
-                    Text(
-                        text = "${state.entries.size} Active",
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                    )
-                }
+                AppBadge(text = "${state.entries.size} Active")
             }
 
             state.entries.forEach { entry ->
@@ -194,7 +187,6 @@ fun HomeContent(state: HomeUiState, onEvent: (HomeUiEvent) -> Unit) {
                 }
             }
 
-            // Extra space so FAB doesn't overlap last card
             Spacer(modifier = Modifier.height(80.dp))
         }
     }
@@ -207,43 +199,69 @@ private fun AddCalendarSheetContent(
     onNameChange: (String) -> Unit,
     onUrlChange: (String) -> Unit,
     onAdd: () -> Unit,
+    onDismiss: () -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp)
-            .padding(bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(horizontal = AppSpacing.lg)
+            .padding(bottom = AppSpacing.xl),
+        verticalArrangement = Arrangement.spacedBy(AppSpacing.md),
     ) {
-        Text(
-            text = "Add New Calendar",
-            style = MaterialTheme.typography.headlineSmall,
-            fontWeight = FontWeight.Bold,
-        )
-        OutlinedTextField(
-            value = name,
-            onValueChange = onNameChange,
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Nickname") },
-            placeholder = { Text("e.g., Gym Schedule") },
-            singleLine = true,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "Add Calendar",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Default.Close, contentDescription = "Close")
+            }
+        }
+
+        Text(
+            text = "Paste the ICS or Webcal URL of the calendar you want to sync to your widget.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        OutlinedTextField(
+
+        PasteTextField(
             value = url,
             onValueChange = onUrlChange,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("ICS URL") },
-            placeholder = { Text("Paste webcal:// or https:// URL here") },
-            minLines = 2,
-            maxLines = 4,
+            label = "ICS or Webcal URL",
+            placeholder = "webcal:// or https://",
         )
-        Button(
+
+        AppTextField(
+            value = name,
+            onValueChange = onNameChange,
+            modifier = Modifier.fillMaxWidth(),
+            label = "Nickname (optional)",
+            placeholder = "e.g., Gym Schedule",
+        )
+
+        AppInfoHint(
+            text = "Common URLs start with webcal:// or https://. Make sure your calendar is set to \"Public\" or \"Published\" to sync correctly.",
+        )
+
+        AppButton(
+            text = "Add to List",
             onClick = onAdd,
             modifier = Modifier.fillMaxWidth(),
             enabled = url.isNotBlank(),
-        ) {
-            Text("Add Calendar")
-        }
+            leadingIcon = Icons.Default.Add,
+        )
+
+        AppTextButton(
+            text = "Cancel",
+            onClick = onDismiss,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -263,30 +281,21 @@ private fun SelectedCalendarCard(
     )
     val iconRotation = if (refreshState is RefreshState.Refreshing) refreshRotation else 0f
 
-    Card(
+    AppCard(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(24.dp),
-        border = BorderStroke(2.dp, MaterialTheme.colorScheme.primary),
+        selected = true,
     ) {
         Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(AppSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.sm),
         ) {
             CalendarCardHeader(entry = entry, isSelected = true, onDelete = onDelete)
-            Button(
+            AppButton(
+                text = "Refresh and Update Widget",
                 onClick = onRefresh,
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Sync,
-                    contentDescription = null,
-                    modifier = Modifier.rotate(iconRotation),
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Refresh and Update Widget")
-            }
+                leadingIcon = Icons.Default.Sync,
+            )
         }
     }
 }
@@ -297,14 +306,11 @@ private fun UnselectedCalendarCard(
     onSelect: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    Card(
+    AppCard(
         onClick = onSelect,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        shape = RoundedCornerShape(20.dp),
     ) {
-        Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+        Box(modifier = Modifier.padding(horizontal = AppSpacing.md, vertical = AppSpacing.sm)) {
             CalendarCardHeader(entry = entry, isSelected = false, onDelete = onDelete)
         }
     }
@@ -319,15 +325,15 @@ private fun CalendarCardHeader(
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(AppSpacing.sm),
     ) {
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(AppSpacing.sm))
                 .background(
                     if (isSelected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.surfaceVariant
+                    else MaterialTheme.colorScheme.surfaceVariant,
                 ),
             contentAlignment = Alignment.Center,
         ) {
@@ -343,7 +349,7 @@ private fun CalendarCardHeader(
         Column(modifier = Modifier.weight(1f)) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(AppSpacing.xs),
             ) {
                 Text(
                     text = entry.name.ifBlank { entry.url },
@@ -354,18 +360,11 @@ private fun CalendarCardHeader(
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 if (isSelected) {
-                    Surface(
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(4.dp),
-                    ) {
-                        Text(
-                            text = "DEFAULT",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Black,
-                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                        )
-                    }
+                    AppBadge(
+                        text = "DEFAULT",
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        contentColor = MaterialTheme.colorScheme.primary,
+                    )
                 }
             }
             if (entry.name.isNotBlank()) {
