@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "AutomaticClockWidget"
 include(":app")
+include(":design-system")
