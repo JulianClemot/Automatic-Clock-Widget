@@ -15,8 +15,8 @@ class SelectUrlUseCaseTest {
         val get = GetUrlStateUseCase(repo)
 
         // When
-        add.addUrl("https://a")
-        add.addUrl("https://b") // selected
+        add.addUrl("", "https://a")
+        add.addUrl("", "https://b") // selected
         select.selectUrl("https://a")
 
         // Then
@@ -32,8 +32,8 @@ class SelectUrlUseCaseTest {
         val select = SelectUrlUseCase(repo)
         val get = GetUrlStateUseCase(repo)
 
-        add.addUrl("https://a")
-        add.addUrl("https://b") // selected
+        add.addUrl("", "https://a")
+        add.addUrl("", "https://b") // selected
 
         // When
         val failure = select.selectUrl("https://c").exceptionOrNull()

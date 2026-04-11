@@ -4,21 +4,23 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.julian.automaticclockwidget.core.AppError
+import com.julian.automaticclockwidget.core.AirportError
+import com.julian.automaticclockwidget.core.CalendarError
 import com.julian.automaticclockwidget.core.SettingsError
+import com.julian.automaticclockwidget.clocks.ClearClocksUseCase
+import com.julian.automaticclockwidget.clocks.RefreshTimezonesUseCase
 import com.julian.automaticclockwidget.settings.AddUrlUseCase
+import com.julian.automaticclockwidget.settings.CalendarEntry
 import com.julian.automaticclockwidget.settings.DeleteUrlUseCase
 import com.julian.automaticclockwidget.settings.GetUrlStateUseCase
 import com.julian.automaticclockwidget.settings.SelectUrlUseCase
-import com.julian.automaticclockwidget.clocks.ClearClocksUseCase
-import com.julian.automaticclockwidget.clocks.RefreshTimezonesUseCase
-import com.julian.automaticclockwidget.core.AirportError
-import com.julian.automaticclockwidget.core.CalendarError
 import com.julian.automaticclockwidget.widgets.WidgetUpdateUseCase
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
@@ -33,103 +35,109 @@ class HomeViewModel(
 ) : ViewModel() {
 
     private val initialState = HomeUiState(
-        urls = emptyList(),
+        entries = emptyList(),
         selected = null,
         errorMessage = null,
         successMessage = null,
+        refreshState = RefreshState.Idle,
+        deletionState = DeletionState.Idle,
         perMinuteTickEnabled = false,
-        requestExactAlarmPermission = false
+        requestExactAlarmPermission = false,
     )
 
     private val _uiState = MutableStateFlow(initialState)
     val uiState: StateFlow<HomeUiState> = _uiState
-        .onStart { refreshUrls() }
+        .onStart { refreshEntries() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = initialState
+            initialValue = initialState,
         )
 
-    private fun refreshUrls() {
+    private fun refreshEntries() {
         getUrlStateUseCase.getUrlState().fold(
             onSuccess = { snapshot ->
-                _uiState.value = _uiState.value.copy(urls = snapshot.urls, selected = snapshot.selected, errorMessage = null)
+                _uiState.update { it.copy(entries = snapshot.entries, selected = snapshot.selected, errorMessage = null) }
             },
             onFailure = { err ->
-                _uiState.value = _uiState.value.copy(errorMessage = mapErrorToMessage(err))
-            }
+                _uiState.update { it.copy(errorMessage = mapErrorToMessage(err)) }
+            },
         )
     }
 
     fun onEvent(event: HomeUiEvent) {
         when (event) {
-            is HomeUiEvent.AddUrl -> {
-                addUrlUseCase.addUrl(event.url).fold(
-                    onSuccess = { refreshUrls() },
-                    onFailure = { err -> _uiState.value = _uiState.value.copy(errorMessage = mapErrorToMessage(err)) }
+            is HomeUiEvent.AddCalendar -> {
+                addUrlUseCase.addUrl(event.name, event.url).fold(
+                    onSuccess = { refreshEntries() },
+                    onFailure = { err -> _uiState.update { it.copy(errorMessage = mapErrorToMessage(err)) } },
                 )
             }
+            is HomeUiEvent.RequestDeleteUrl -> {
+                _uiState.update { it.copy(deletionState = DeletionState.ConfirmationPending(event.url)) }
+            }
+            HomeUiEvent.DismissDeleteConfirmation -> {
+                _uiState.update { it.copy(deletionState = DeletionState.Idle) }
+            }
             is HomeUiEvent.DeleteUrl -> {
+                _uiState.update { it.copy(deletionState = DeletionState.Idle) }
                 deleteUrlUseCase.deleteUrl(event.url).fold(
-                    onSuccess = { refreshUrls() },
-                    onFailure = { err -> _uiState.value = _uiState.value.copy(errorMessage = mapErrorToMessage(err)) }
+                    onSuccess = { refreshEntries() },
+                    onFailure = { err -> _uiState.update { it.copy(errorMessage = mapErrorToMessage(err)) } },
                 )
             }
             is HomeUiEvent.SelectUrl -> {
                 selectUrlUseCase.selectUrl(event.url).fold(
                     onSuccess = {
-                        // Update UI selection state immediately
-                        refreshUrls()
-                        // Clear stored clocks first
+                        refreshEntries()
                         clearClocksUseCase.clearClocks().fold(
                             onSuccess = {
-                                // Then refresh timezones and store them
                                 viewModelScope.launch {
-                                    val res = refreshTimezonesUseCase.refreshNow()
-                                    res.onFailure { err ->
-                                        _uiState.value = _uiState.value.copy(errorMessage = mapErrorToMessage(err))
+                                    refreshTimezonesUseCase.refreshNow().onFailure { err ->
+                                        _uiState.update { it.copy(errorMessage = mapErrorToMessage(err)) }
                                     }
                                 }
                             },
                             onFailure = { err ->
-                                _uiState.value = _uiState.value.copy(errorMessage = mapErrorToMessage(err))
-                            }
+                                _uiState.update { it.copy(errorMessage = mapErrorToMessage(err)) }
+                            },
                         )
                     },
-                    onFailure = { err -> _uiState.value = _uiState.value.copy(errorMessage = mapErrorToMessage(err)) }
+                    onFailure = { err -> _uiState.update { it.copy(errorMessage = mapErrorToMessage(err)) } },
                 )
             }
-            is HomeUiEvent.ManualRefresh -> {
+            HomeUiEvent.ManualRefresh -> {
                 viewModelScope.launch {
-                    val res = refreshTimezonesUseCase.refreshNow()
-                    res.fold(
+                    _uiState.update { it.copy(refreshState = RefreshState.Refreshing) }
+                    refreshTimezonesUseCase.refreshNow().fold(
                         onSuccess = {
-                            // Immediately refresh widgets so UI reflects new clocks
                             try {
                                 widgetUpdateUseCase.updateAll(appContext)
-                                _uiState.value = _uiState.value.copy(
+                                _uiState.update { it.copy(
+                                    refreshState = RefreshState.Idle,
                                     successMessage = "Clocks updated and widget refreshed",
-                                    errorMessage = null
-                                )
+                                    errorMessage = null,
+                                ) }
                             } catch (t: Throwable) {
-                                _uiState.value = _uiState.value.copy(
+                                _uiState.update { it.copy(
+                                    refreshState = RefreshState.Idle,
                                     errorMessage = mapErrorToMessage(t),
-                                    successMessage = null
-                                )
+                                    successMessage = null,
+                                ) }
                             }
                         },
                         onFailure = { err ->
-                            _uiState.value = _uiState.value.copy(
+                            _uiState.update { it.copy(
+                                refreshState = RefreshState.Idle,
                                 errorMessage = mapErrorToMessage(err),
-                                successMessage = null
-                            )
-                        }
+                                successMessage = null,
+                            ) }
+                        },
                     )
                 }
             }
-            HomeUiEvent.DismissError -> _uiState.value = _uiState.value.copy(errorMessage = null)
-            HomeUiEvent.DismissSuccess -> _uiState.value = _uiState.value.copy(successMessage = null)
-
+            HomeUiEvent.DismissError -> _uiState.update { it.copy(errorMessage = null) }
+            HomeUiEvent.DismissSuccess -> _uiState.update { it.copy(successMessage = null) }
         }
     }
 
@@ -146,17 +154,31 @@ class HomeViewModel(
     }
 }
 
+sealed interface RefreshState {
+    data object Idle : RefreshState
+    data object Refreshing : RefreshState
+}
+
+sealed interface DeletionState {
+    data object Idle : DeletionState
+    data class ConfirmationPending(val url: String) : DeletionState
+}
+
 data class HomeUiState(
-    val urls: List<String>,
+    val entries: List<CalendarEntry>,
     val selected: String?,
     val errorMessage: String?,
     val successMessage: String?,
+    val refreshState: RefreshState,
+    val deletionState: DeletionState,
     val perMinuteTickEnabled: Boolean,
     val requestExactAlarmPermission: Boolean,
 )
 
 sealed interface HomeUiEvent {
-    data class AddUrl(val url: String) : HomeUiEvent
+    data class AddCalendar(val name: String, val url: String) : HomeUiEvent
+    data class RequestDeleteUrl(val url: String) : HomeUiEvent
+    data object DismissDeleteConfirmation : HomeUiEvent
     data class DeleteUrl(val url: String) : HomeUiEvent
     data class SelectUrl(val url: String) : HomeUiEvent
     /** User-initiated manual refresh: fetch, save clocks, and immediately update widgets. */

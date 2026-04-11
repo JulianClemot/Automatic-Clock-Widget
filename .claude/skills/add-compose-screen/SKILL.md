@@ -34,28 +34,27 @@ class [Feature]ViewModel(
     private val appContext: Context,
 ) : ViewModel() {
 
-    private val initialState = [Feature]UiState()
-    private val _uiState = MutableStateFlow(initialState)
+    private val _uiState = MutableStateFlow<[Feature]UiState>([Feature]UiState.Loading)
     val uiState: StateFlow<[Feature]UiState> = _uiState
         .onStart { loadInitialData() }
         .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
-            initialValue = initialState,
+            initialValue = [Feature]UiState.Loading,
         )
 
     fun onEvent(event: [Feature]UiEvent) {
         when (event) {
             is [Feature]UiEvent.SomeAction -> handleSomeAction(event)
-            is [Feature]UiEvent.DismissError -> _uiState.update { it.copy(errorMessage = null) }
         }
     }
 
     private fun handleSomeAction(event: [Feature]UiEvent.SomeAction) {
         viewModelScope.launch {
+            _uiState.value = [Feature]UiState.Loading
             someUseCase.execute(event.param).fold(
-                onSuccess = { result -> _uiState.update { it.copy(data = result, errorMessage = null) } },
-                onFailure = { error -> _uiState.update { it.copy(errorMessage = mapErrorToMessage(error)) } },
+                onSuccess = { result -> _uiState.value = [Feature]UiState.Success(result) },
+                onFailure = { error -> _uiState.value = [Feature]UiState.Error(mapErrorToMessage(error)) },
             )
         }
     }
@@ -68,16 +67,14 @@ class [Feature]ViewModel(
     }
 }
 
-data class [Feature]UiState(
-    val data: SomeData? = null,
-    val isLoading: Boolean = false,
-    val errorMessage: String? = null,
-    val successMessage: String? = null,
-)
+sealed class [Feature]UiState {
+    data object Loading : [Feature]UiState()
+    data class Success(val data: SomeData) : [Feature]UiState()
+    data class Error(val message: String) : [Feature]UiState()
+}
 
 sealed interface [Feature]UiEvent {
     data class SomeAction(val param: String) : [Feature]UiEvent
-    data object DismissError : [Feature]UiEvent
 }
 ```
 
@@ -98,10 +95,9 @@ fun [Feature]Content(
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
 
-    LaunchedEffect(state.errorMessage) {
-        state.errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            onEvent([Feature]UiEvent.DismissError)
+    LaunchedEffect(state) {
+        if (state is [Feature]UiState.Error) {
+            snackbarHostState.showSnackbar(state.message)
         }
     }
 
@@ -109,11 +105,16 @@ fun [Feature]Content(
         modifier = Modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        Column(
-            modifier = Modifier.padding(innerPadding).fillMaxSize().padding(16.dp),
-        ) {
-            if (state.isLoading) CircularProgressIndicator()
-            else { /* content */ }
+        when (state) {
+            is [Feature]UiState.Loading -> CircularProgressIndicator(
+                modifier = Modifier.padding(innerPadding),
+            )
+            is [Feature]UiState.Error -> { /* error shown via snackbar; optionally show retry */ }
+            is [Feature]UiState.Success -> Column(
+                modifier = Modifier.padding(innerPadding).fillMaxSize().padding(16.dp),
+            ) {
+                /* content using state.data */
+            }
         }
     }
 }
@@ -137,7 +138,7 @@ composable<[Feature]Route> {
 
 - **EntryPoint** — only connects ViewModel to Content via `collectAsStateWithLifecycle()`
 - **Content** — pure UI, no ViewModel; receives `state` + `onEvent` lambda
-- **UiState** — immutable `data class`; mutate with `_uiState.update { it.copy(...) }`
+- **UiState** — `sealed class` with subtypes for each state variant (e.g. `Loading`, `Success`, `Error`); assign with `_uiState.value = NewState(...)`; branch in UI via `when (state)`
 - **UiEvent** — `sealed interface`; one subtype per user action
 - **Errors** — always Snackbar via `LaunchedEffect` + `DismissError` event
 - Private backing: `_uiState: MutableStateFlow`; public: `uiState: StateFlow`

@@ -27,7 +27,7 @@ class RefreshTimezonesUseCaseTest {
     fun `given mixed airport resolutions then saved clocks preserve order of successes only`() = runBlocking {
         // Given
         val urlRepo = FakeUrlPreferencesRepository().apply {
-            addUrl("https://ics"); selectUrl("https://ics")
+            addEntry("", "https://ics"); selectUrl("https://ics")
         }
         val clocksRepo = FakeClocksPreferencesRepository()
 
@@ -61,7 +61,7 @@ class RefreshTimezonesUseCaseTest {
         val getUpcomingUC = GetUpcomingClocksUseCase(downloadUC, airportUC)
 
         val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC)
-        
+
         // When
         val res = sut.refreshNow()
 
@@ -77,7 +77,7 @@ class RefreshTimezonesUseCaseTest {
     fun `given successful upcoming clocks then repository saves mapped clocks`() = runBlocking {
         // Given
         val urlRepo = FakeUrlPreferencesRepository().apply {
-            addUrl("https://ics"); selectUrl("https://ics")
+            addEntry("", "https://ics"); selectUrl("https://ics")
         }
         val clocksRepo = FakeClocksPreferencesRepository()
 
@@ -97,7 +97,7 @@ class RefreshTimezonesUseCaseTest {
         val getUpcomingUC = GetUpcomingClocksUseCase(downloadUC, airportUC)
 
         val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC)
-        
+
         // When
         val res = sut.refreshNow()
 
@@ -115,7 +115,7 @@ class RefreshTimezonesUseCaseTest {
     @Test
     fun `given no selected url then refresh is a no-op success and repository unchanged`() = runBlocking {
         // Given
-        val urlRepo = FakeUrlPreferencesRepository() // no urls selected
+        val urlRepo = FakeUrlPreferencesRepository() // no entries selected
         val clocksRepo = FakeClocksPreferencesRepository().apply {
             saveClocks(listOf(StoredClock("ABC", "X", "UTC")))
         }
@@ -125,7 +125,7 @@ class RefreshTimezonesUseCaseTest {
         val getUpcomingUC = GetUpcomingClocksUseCase(DownloadCalendarUseCase(calRepo), GetAirportTimezoneUseCase(airRepo))
 
         val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC)
-        
+
         // When
         val res = sut.refreshNow()
 
@@ -139,7 +139,7 @@ class RefreshTimezonesUseCaseTest {
     fun `given failure from getUpcoming then refresh forwards failure and repository unchanged`() = runBlocking {
         // Given
         val urlRepo = FakeUrlPreferencesRepository().apply {
-            addUrl("https://ics"); selectUrl("https://ics")
+            addEntry("", "https://ics"); selectUrl("https://ics")
         }
         val clocksRepo = FakeClocksPreferencesRepository().apply {
             saveClocks(listOf(StoredClock("DEF", "Y", "UTC")))
@@ -149,7 +149,7 @@ class RefreshTimezonesUseCaseTest {
         val getUpcomingUC = GetUpcomingClocksUseCase(DownloadCalendarUseCase(calRepo), GetAirportTimezoneUseCase(airRepo))
 
         val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC)
-        
+
         // When
         val res = sut.refreshNow()
 

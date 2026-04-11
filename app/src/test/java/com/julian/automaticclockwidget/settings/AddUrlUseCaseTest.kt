@@ -16,13 +16,13 @@ class AddUrlUseCaseTest {
         val get = GetUrlStateUseCase(repo)
 
         // When
-        add.addUrl("  https://a  ")
-        add.addUrl("https://b")
-        add.addUrl("HTTPS://A") // duplicate different case -> moves to end and becomes selected
+        add.addUrl("", "  https://a  ")
+        add.addUrl("", "https://b")
+        add.addUrl("", "HTTPS://A") // duplicate different case -> moves to end and becomes selected
 
         // Then
         val state = get.getUrlState().getOrThrow()
-        assertEquals(listOf("https://b", "HTTPS://A"), state.urls)
+        assertEquals(listOf(CalendarEntry("", "https://b"), CalendarEntry("", "HTTPS://A")), state.entries)
         assertEquals("HTTPS://A", state.selected)
     }
 
@@ -33,13 +33,13 @@ class AddUrlUseCaseTest {
         val add = AddUrlUseCase(repo)
 
         // When
-        val result = add.addUrl("   ")
+        val result = add.addUrl("", "   ")
 
         // Then
         val error = result.exceptionOrNull()
         assertTrue(error is SettingsError.InvalidInput)
         val state = GetUrlStateUseCase(repo).getUrlState().getOrThrow()
-        assertEquals(emptyList<String>(), state.urls)
+        assertEquals(emptyList<CalendarEntry>(), state.entries)
         assertEquals(null, state.selected)
     }
 }

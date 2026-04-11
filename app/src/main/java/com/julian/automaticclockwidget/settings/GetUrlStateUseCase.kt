@@ -1,15 +1,15 @@
 package com.julian.automaticclockwidget.settings
 
-/** Snapshot of the current URLs and the selected one. */
+/** Snapshot of the current calendar entries and the selected URL. */
 data class UrlState(
-    val urls: List<String>,
-    val selected: String?
+    val entries: List<CalendarEntry>,
+    val selected: String?,
 )
 
 class GetUrlStateUseCase(private val repo: UrlPreferencesRepository) {
     fun getUrlState(): Result<UrlState> = runCatching {
-        val urls = repo.getUrls().getOrElse { throw it }
+        val entries = repo.getEntries().getOrElse { throw it }
         val selected = repo.getSelectedUrl().getOrElse { throw it }
-        UrlState(urls = urls, selected = selected)
+        UrlState(entries = entries, selected = selected)
     }
 }

@@ -18,14 +18,14 @@ class DeleteUrlUseCaseTest {
         val get = GetUrlStateUseCase(repo)
 
         // When
-        add.addUrl("https://a")
-        add.addUrl("https://b")
-        add.addUrl("https://c") // selected
+        add.addUrl("", "https://a")
+        add.addUrl("", "https://b")
+        add.addUrl("", "https://c") // selected
         delete.deleteUrl("https://c")
 
         // Then
         val state = get.getUrlState().getOrThrow()
-        assertEquals(listOf("https://a", "https://b"), state.urls)
+        assertEquals(listOf(CalendarEntry("", "https://a"), CalendarEntry("", "https://b")), state.entries)
         assertEquals("https://b", state.selected)
     }
 
@@ -38,12 +38,12 @@ class DeleteUrlUseCaseTest {
         val get = GetUrlStateUseCase(repo)
 
         // When
-        add.addUrl("https://a")
+        add.addUrl("", "https://a")
         delete.deleteUrl("https://a")
 
         // Then
         val state = get.getUrlState().getOrThrow()
-        assertEquals(emptyList<String>(), state.urls)
+        assertEquals(emptyList<CalendarEntry>(), state.entries)
         assertNull(state.selected)
     }
 
@@ -52,10 +52,10 @@ class DeleteUrlUseCaseTest {
         // Given
         val repo = FakeUrlPreferencesRepository()
         val delete = DeleteUrlUseCase(repo)
-        
+
         // When
         val result = delete.deleteUrl("https://does-not-exist")
-        
+
         // Then
         val error = result.exceptionOrNull()
         assertTrue(error is SettingsError.NotFound)
