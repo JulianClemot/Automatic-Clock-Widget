@@ -19,6 +19,8 @@ import com.julian.automaticclockwidget.settings.SettingsPreferencesRepository
 import com.julian.automaticclockwidget.settings.SettingsPreferencesRepositoryImpl
 import com.julian.automaticclockwidget.settings.UrlPreferencesRepository
 import com.julian.automaticclockwidget.settings.UrlPreferencesRepositoryImpl
+import com.julian.automaticclockwidget.observability.ObservabilityRepository
+import com.julian.automaticclockwidget.observability.sentry.SentryObservabilityRepository
 import com.julian.automaticclockwidget.ui.home.HomeViewModel
 import com.julian.automaticclockwidget.widgets.GlanceWidgetUpdateUseCase
 import com.julian.automaticclockwidget.widgets.WidgetUpdateUseCase
@@ -66,6 +68,7 @@ val appModule = module {
 
     single<UrlPreferencesRepository> { UrlPreferencesRepositoryImpl(get()) }
     single<SettingsPreferencesRepository> { SettingsPreferencesRepositoryImpl(get()) }
+    single<ObservabilityRepository> { SentryObservabilityRepository() }
 
     worker { CalendarRefreshWorker(get(), get(), get(), get(), get()) }
 
