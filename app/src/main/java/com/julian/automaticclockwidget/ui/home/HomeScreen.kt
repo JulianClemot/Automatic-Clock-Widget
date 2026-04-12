@@ -192,6 +192,16 @@ fun HomeContent(state: HomeUiState, onEvent: (HomeUiEvent) -> Unit) {
     }
 }
 
+/**
+ * Matches either:
+ * - a complete valid calendar URL (http://, https://, or webcal:// followed by anything), or
+ * - any in-progress prefix of those schemes (so no error fires while the user is still typing
+ *   the scheme part — e.g. "h", "ht", "htt", "http", "webcal:", etc.).
+ */
+private val CALENDAR_URL_REGEX = Regex(
+    """^(https?://.*|webcal://.*|h|ht|htt|http|https|http:|https:|http:/|https:/|w|we|web|webc|webca|webcal|webcal:|webcal:/)$"""
+)
+
 @Composable
 private fun AddCalendarSheetContent(
     name: String,
@@ -201,6 +211,10 @@ private fun AddCalendarSheetContent(
     onAdd: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val urlError: String? = if (url.isNotBlank() && !CALENDAR_URL_REGEX.matches(url)) {
+        "URL must start with http://, https://, or webcal://"
+    } else null
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -235,6 +249,8 @@ private fun AddCalendarSheetContent(
             modifier = Modifier.fillMaxWidth(),
             label = "ICS or Webcal URL",
             placeholder = "webcal:// or https://",
+            isError = urlError != null,
+            supportingText = urlError?.let { { Text(it) } },
         )
 
         AppTextField(
@@ -253,7 +269,7 @@ private fun AddCalendarSheetContent(
             text = "Add to List",
             onClick = onAdd,
             modifier = Modifier.fillMaxWidth(),
-            enabled = url.isNotBlank(),
+            enabled = url.isNotBlank() && urlError == null,
             leadingIcon = Icons.Default.Add,
         )
 

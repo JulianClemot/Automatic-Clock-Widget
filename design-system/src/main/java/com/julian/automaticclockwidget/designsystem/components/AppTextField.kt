@@ -31,6 +31,8 @@ fun AppTextField(
     label: String? = null,
     placeholder: String? = null,
     singleLine: Boolean = true,
+    isError: Boolean = false,
+    supportingText: @Composable (() -> Unit)? = null,
     trailingIcon: @Composable (() -> Unit)? = null,
 ) {
     OutlinedTextField(
@@ -40,6 +42,8 @@ fun AppTextField(
         label = label?.let { { Text(it) } },
         placeholder = placeholder?.let { { Text(it) } },
         singleLine = singleLine,
+        isError = isError,
+        supportingText = supportingText,
         trailingIcon = trailingIcon,
         shape = MaterialTheme.shapes.small,
     )
@@ -53,6 +57,8 @@ fun PasteTextField(
     modifier: Modifier = Modifier,
     label: String? = null,
     placeholder: String? = null,
+    isError: Boolean = false,
+    supportingText: @Composable (() -> Unit)? = null,
 ) {
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -64,6 +70,8 @@ fun PasteTextField(
         label = label,
         placeholder = placeholder,
         singleLine = true,
+        isError = isError,
+        supportingText = supportingText,
         trailingIcon = {
             Row(
                 modifier = Modifier
