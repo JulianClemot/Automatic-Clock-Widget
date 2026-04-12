@@ -45,6 +45,7 @@ class HomeViewModel(
         successMessage = null,
         refreshState = RefreshState.Idle,
         deletionState = DeletionState.Idle,
+        addUrlError = null,
         perMinuteTickEnabled = false,
         requestExactAlarmPermission = false,
     )
@@ -89,6 +90,7 @@ class HomeViewModel(
                     onSuccess = {
                         tx.setStatus("ok")
                         tx.finish()
+                        _uiState.update { it.copy(addUrlError = null) }
                         refreshEntries()
                     },
                     onFailure = { err ->
@@ -102,6 +104,12 @@ class HomeViewModel(
                         _uiState.update { it.copy(errorMessage = mapErrorToMessage(err)) }
                     },
                 )
+            }
+            is HomeUiEvent.ValidateAddUrl -> {
+                val error = if (event.url.isNotBlank() && !CALENDAR_URL_REGEX.matches(event.url)) {
+                    "URL must start with http://, https://, or webcal://"
+                } else null
+                _uiState.update { it.copy(addUrlError = error) }
             }
             is HomeUiEvent.RequestDeleteUrl -> {
                 _uiState.update { it.copy(deletionState = DeletionState.ConfirmationPending(event.url)) }
@@ -256,6 +264,17 @@ class HomeViewModel(
         }
     }
 
+    companion object {
+        /**
+         * Matches either a complete valid calendar URL (http://, https://, or webcal:// followed
+         * by anything), or any in-progress prefix of those schemes so no error fires while the
+         * user is still typing the scheme part.
+         */
+        private val CALENDAR_URL_REGEX = Regex(
+            """^(https?://.*|webcal://.*|h|ht|htt|http|https|http:|https:|http:/|https:/|w|we|web|webc|webca|webcal|webcal:|webcal:/)$"""
+        )
+    }
+
     private fun mapErrorToMessage(error: Throwable): String = when (error) {
         is SettingsError.InvalidInput -> "Invalid URL"
         is SettingsError.NotFound -> "URL not found"
@@ -286,12 +305,14 @@ data class HomeUiState(
     val successMessage: String?,
     val refreshState: RefreshState,
     val deletionState: DeletionState,
+    val addUrlError: String?,
     val perMinuteTickEnabled: Boolean,
     val requestExactAlarmPermission: Boolean,
 )
 
 sealed interface HomeUiEvent {
     data class AddCalendar(val name: String, val url: String) : HomeUiEvent
+    data class ValidateAddUrl(val url: String) : HomeUiEvent
     data class RequestDeleteUrl(val url: String) : HomeUiEvent
     data object DismissDeleteConfirmation : HomeUiEvent
     data class DeleteUrl(val url: String) : HomeUiEvent

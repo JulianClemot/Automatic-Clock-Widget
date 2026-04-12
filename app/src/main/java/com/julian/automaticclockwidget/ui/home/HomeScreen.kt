@@ -119,6 +119,7 @@ fun HomeContent(state: HomeUiState, onEvent: (HomeUiEvent) -> Unit) {
             showAddSheet = false
             newName = ""
             newUrl = ""
+            onEvent(HomeUiEvent.ValidateAddUrl(""))
         }
         ModalBottomSheet(
             onDismissRequest = dismiss,
@@ -127,8 +128,12 @@ fun HomeContent(state: HomeUiState, onEvent: (HomeUiEvent) -> Unit) {
             AddCalendarSheetContent(
                 name = newName,
                 url = newUrl,
+                urlError = state.addUrlError,
                 onNameChange = { newName = it },
-                onUrlChange = { newUrl = it },
+                onUrlChange = {
+                    newUrl = it
+                    onEvent(HomeUiEvent.ValidateAddUrl(it))
+                },
                 onAdd = {
                     onEvent(HomeUiEvent.AddCalendar(newName, newUrl))
                     dismiss()
@@ -192,28 +197,16 @@ fun HomeContent(state: HomeUiState, onEvent: (HomeUiEvent) -> Unit) {
     }
 }
 
-/**
- * Matches either:
- * - a complete valid calendar URL (http://, https://, or webcal:// followed by anything), or
- * - any in-progress prefix of those schemes (so no error fires while the user is still typing
- *   the scheme part — e.g. "h", "ht", "htt", "http", "webcal:", etc.).
- */
-private val CALENDAR_URL_REGEX = Regex(
-    """^(https?://.*|webcal://.*|h|ht|htt|http|https|http:|https:|http:/|https:/|w|we|web|webc|webca|webcal|webcal:|webcal:/)$"""
-)
-
 @Composable
 private fun AddCalendarSheetContent(
     name: String,
     url: String,
+    urlError: String?,
     onNameChange: (String) -> Unit,
     onUrlChange: (String) -> Unit,
     onAdd: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    val urlError: String? = if (url.isNotBlank() && !CALENDAR_URL_REGEX.matches(url)) {
-        "URL must start with http://, https://, or webcal://"
-    } else null
 
     Column(
         modifier = Modifier
