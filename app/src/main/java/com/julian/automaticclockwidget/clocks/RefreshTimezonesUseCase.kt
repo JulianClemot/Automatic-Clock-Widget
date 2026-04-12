@@ -1,11 +1,13 @@
 package com.julian.automaticclockwidget.clocks
 
-import com.julian.automaticclockwidget.clocks.ClocksPreferencesRepository
-import com.julian.automaticclockwidget.clocks.StoredClock
-import kotlin.time.ExperimentalTime
 import com.julian.automaticclockwidget.airports.Airport
 import com.julian.automaticclockwidget.calendars.GetUpcomingClocksUseCase
+import com.julian.automaticclockwidget.core.sanitizeUrl
+import com.julian.automaticclockwidget.core.toErrorContext
+import com.julian.automaticclockwidget.observability.BreadcrumbLevel
+import com.julian.automaticclockwidget.observability.ObservabilityRepository
 import com.julian.automaticclockwidget.settings.UrlPreferencesRepository
+import kotlin.time.ExperimentalTime
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.minus
@@ -17,26 +19,78 @@ class RefreshTimezonesUseCase(
     private val urlRepo: UrlPreferencesRepository,
     private val clocksRepo: ClocksPreferencesRepository,
     private val getUpcomingClocksUseCase: GetUpcomingClocksUseCase,
+    private val observability: ObservabilityRepository,
 ) {
     suspend fun refreshNow(): Result<Unit> {
+        observability.log(message = "Loading selected URL", category = "workflow")
+
         // Read selected URL
-        val selectedUrl = urlRepo.getSelectedUrl().getOrElse { return Result.failure(it) }
+        val selectedUrl = urlRepo.getSelectedUrl().getOrElse { t ->
+            observability.sendErrorEvent(
+                throwable = t,
+                context = t.toErrorContext() + ("stage" to "getSelectedUrl"),
+            )
+            return Result.failure(t)
+        }
+
         if (selectedUrl.isNullOrBlank()) {
-            // No URL selected: treat as success no-op
+            observability.log(
+                message = "No URL selected; refresh is a no-op",
+                category = "workflow",
+                level = BreadcrumbLevel.WARNING,
+            )
             return Result.success(Unit)
         }
 
-        // Compute startDate = now - 3 days (local tz)
+        observability.log(
+            message = "Selected URL resolved",
+            category = "workflow",
+            data = mapOf("host" to sanitizeUrl(selectedUrl)),
+        )
+
+        // Compute startDate = now (local tz)
         val tz = TimeZone.currentSystemDefault()
         val now = Clock.System.now()
         val startDate = now.toLocalDateTime(tz)
 
+        observability.log(
+            message = "Fetching upcoming clocks",
+            category = "workflow",
+            data = mapOf("startDate" to startDate.toString()),
+        )
+
         // Fetch upcoming airports
         val airportsResult = getUpcomingClocksUseCase.getUpcomingClocks(selectedUrl, startDate)
-        val airports = airportsResult.getOrElse { return Result.failure(it) }
+        val airports = airportsResult.getOrElse { t ->
+            observability.sendErrorEvent(
+                throwable = t,
+                context = t.toErrorContext() + ("stage" to "getUpcomingClocks"),
+            )
+            return Result.failure(t)
+        }
+
+        observability.log(
+            message = "Computed clocks",
+            category = "workflow",
+            data = mapOf(
+                "clocksCount" to airports.size,
+                "iataCodes" to airports.map { it.iataCode },
+            ),
+        )
 
         val clocks = airports.map { it.toStoredClock() }
-        return clocksRepo.saveClocks(clocks)
+        return clocksRepo.saveClocks(clocks).onFailure { t ->
+            observability.sendErrorEvent(
+                throwable = t,
+                context = t.toErrorContext() + ("stage" to "saveClocks"),
+            )
+        }.onSuccess {
+            observability.log(
+                message = "Clocks saved",
+                category = "storage",
+                data = mapOf("clocksCount" to clocks.size),
+            )
+        }
     }
 }
 

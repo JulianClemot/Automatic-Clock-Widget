@@ -5,15 +5,27 @@ import com.julian.automaticclockwidget.airports.AirportsRepository
 import com.julian.automaticclockwidget.core.AppError
 import com.julian.automaticclockwidget.core.AirportError
 import com.julian.automaticclockwidget.core.UnknownError
+import com.julian.automaticclockwidget.core.toErrorContext
+import com.julian.automaticclockwidget.observability.BreadcrumbLevel
+import com.julian.automaticclockwidget.observability.ObservabilityRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.Request
 import java.io.IOException
 
-class RestAirportRepository(private val client: okhttp3.OkHttpClient) : AirportsRepository {
+class RestAirportRepository(
+    private val client: okhttp3.OkHttpClient,
+    private val observability: ObservabilityRepository,
+) : AirportsRepository {
 
     override suspend fun findAirport(iataCode: String) = withContext(Dispatchers.IO) {
+        observability.log(
+            message = "REST airport request",
+            category = "network",
+            data = mapOf("iataCode" to iataCode),
+        )
+
         val requestBuilder = Request.Builder()
             .url(FIND_AIRPORT_REQUEST.replace("{:iata}", iataCode))
 
@@ -23,6 +35,12 @@ class RestAirportRepository(private val client: okhttp3.OkHttpClient) : Airports
         runCatching {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
+                    observability.log(
+                        message = "REST airport HTTP failure",
+                        category = "network",
+                        level = BreadcrumbLevel.WARNING,
+                        data = mapOf("iataCode" to iataCode, "code" to response.code),
+                    )
                     if (response.code == 404) {
                         throw AirportError.NotFound("Airport $iataCode not found")
                     } else {
@@ -31,6 +49,11 @@ class RestAirportRepository(private val client: okhttp3.OkHttpClient) : Airports
                 }
                 val body = response.body.string()
                 val restResult = Json.decodeFromString<RestAirport>(body)
+                observability.log(
+                    message = "REST airport resolved",
+                    category = "network",
+                    data = mapOf("iataCode" to iataCode, "timezone" to restResult.timezone),
+                )
                 restResult.toAirport()
             }
         }.recoverCatching { t ->
@@ -40,6 +63,12 @@ class RestAirportRepository(private val client: okhttp3.OkHttpClient) : Airports
                 is IllegalArgumentException, is IllegalStateException -> throw UnknownError("Invalid airport response", t)
                 else -> throw UnknownError(cause = t)
             }
+        }.onFailure { t ->
+            observability.sendErrorEvent(
+                throwable = t,
+                context = t.toErrorContext() + ("stage" to "findAirport") + ("iataCode" to iataCode),
+                tags = mapOf("feature" to "airports"),
+            )
         }
     }
 

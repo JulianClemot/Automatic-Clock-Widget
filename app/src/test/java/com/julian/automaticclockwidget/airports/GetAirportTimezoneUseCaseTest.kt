@@ -1,6 +1,7 @@
 package com.julian.automaticclockwidget.airports
 
 import com.julian.automaticclockwidget.fixtures.FakeAirportsRepository
+import com.julian.automaticclockwidget.fixtures.FakeObservabilityRepository
 import kotlinx.datetime.TimeZone
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -15,7 +16,7 @@ class GetAirportTimezoneUseCaseTest {
         val repo = FakeAirportsRepository().apply {
             responses["JFK"] = Result.success(Airport("JFK", "John F Kennedy", TimeZone.of("America/New_York")))
         }
-        val uc = GetAirportTimezoneUseCase(repo)
+        val uc = GetAirportTimezoneUseCase(repo, FakeObservabilityRepository())
 
         // When
         val result = uc.getAirportTimezone("JFK")
@@ -31,7 +32,7 @@ class GetAirportTimezoneUseCaseTest {
         val repo = FakeAirportsRepository().apply {
             responses["LHR"] = Result.failure(Exception("Not found"))
         }
-        val uc = GetAirportTimezoneUseCase(repo)
+        val uc = GetAirportTimezoneUseCase(repo, FakeObservabilityRepository())
 
         // When
         val result = uc.getAirportTimezone("LHR")

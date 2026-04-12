@@ -4,6 +4,7 @@ import com.julian.automaticclockwidget.airports.Airport
 import com.julian.automaticclockwidget.airports.GetAirportTimezoneUseCase
 import com.julian.automaticclockwidget.fixtures.FakeAirportsRepository
 import com.julian.automaticclockwidget.fixtures.FakeCalendarsRepository
+import com.julian.automaticclockwidget.fixtures.FakeObservabilityRepository
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
@@ -41,9 +42,9 @@ class GetUpcomingClocksUseCaseTest {
             responses["JFK"] = Result.success(Airport("JFK", "John F Kennedy", TimeZone.of("America/New_York")))
             responses["LHR"] = Result.failure(Exception("not available"))
         }
-        val airportUC = GetAirportTimezoneUseCase(fakeAirRepo)
+        val airportUC = GetAirportTimezoneUseCase(fakeAirRepo, FakeObservabilityRepository())
 
-        val uc = GetUpcomingClocksUseCase(downloadUC, airportUC)
+        val uc = GetUpcomingClocksUseCase(downloadUC, airportUC, FakeObservabilityRepository())
 
         // When
         val result = uc.getUpcomingClocks("https://ics", start)
@@ -65,9 +66,9 @@ class GetUpcomingClocksUseCaseTest {
         val downloadUC = DownloadCalendarUseCase(fakeCalRepo)
 
         val fakeAirRepo = FakeAirportsRepository() // should not be consulted
-        val airportUC = GetAirportTimezoneUseCase(fakeAirRepo)
+        val airportUC = GetAirportTimezoneUseCase(fakeAirRepo, FakeObservabilityRepository())
 
-        val uc = GetUpcomingClocksUseCase(downloadUC, airportUC)
+        val uc = GetUpcomingClocksUseCase(downloadUC, airportUC, FakeObservabilityRepository())
 
         // When
         val result = uc.getUpcomingClocks("https://ics", LocalDateTime(2025, 1, 10, 0, 0, 0))

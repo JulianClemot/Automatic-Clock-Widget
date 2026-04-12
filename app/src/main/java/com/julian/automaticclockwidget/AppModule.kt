@@ -11,6 +11,8 @@ import com.julian.automaticclockwidget.clocks.ClearClocksUseCase
 import com.julian.automaticclockwidget.clocks.ClocksPreferencesRepository
 import com.julian.automaticclockwidget.clocks.ClocksPreferencesRepositoryImpl
 import com.julian.automaticclockwidget.clocks.RefreshTimezonesUseCase
+import com.julian.automaticclockwidget.observability.ObservabilityRepository
+import com.julian.automaticclockwidget.observability.sentry.SentryObservabilityRepository
 import com.julian.automaticclockwidget.settings.AddUrlUseCase
 import com.julian.automaticclockwidget.settings.DeleteUrlUseCase
 import com.julian.automaticclockwidget.settings.GetUrlStateUseCase
@@ -19,8 +21,6 @@ import com.julian.automaticclockwidget.settings.SettingsPreferencesRepository
 import com.julian.automaticclockwidget.settings.SettingsPreferencesRepositoryImpl
 import com.julian.automaticclockwidget.settings.UrlPreferencesRepository
 import com.julian.automaticclockwidget.settings.UrlPreferencesRepositoryImpl
-import com.julian.automaticclockwidget.observability.ObservabilityRepository
-import com.julian.automaticclockwidget.observability.sentry.SentryObservabilityRepository
 import com.julian.automaticclockwidget.ui.home.HomeViewModel
 import com.julian.automaticclockwidget.widgets.GlanceWidgetUpdateUseCase
 import com.julian.automaticclockwidget.widgets.WidgetUpdateUseCase
@@ -29,29 +29,34 @@ import kotlinx.coroutines.Dispatchers
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.android.ext.koin.androidApplication
+import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.workmanager.dsl.worker
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
 
 val appModule = module {
 
-    // ViewModel injects URL use cases only (no direct repo, no GetUpcomingClocksUseCase)
+    // Observability
+    single<ObservabilityRepository> { SentryObservabilityRepository() }
+
+    // ViewModel
     viewModel<HomeViewModel> {
         HomeViewModel(
-            get(), get(), get(), get(), get(), get(), get(), androidApplication()
+            get(), get(), get(), get(), get(), get(), get(), get(), androidApplication()
         )
     }
 
     // Use cases
-    single { GetAirportTimezoneUseCase(get()) }
+    single { GetAirportTimezoneUseCase(get(), get()) }
     single { DownloadCalendarUseCase(get()) }
-    single { GetUpcomingClocksUseCase(get(), get()) }
+    single { GetUpcomingClocksUseCase(get(), get(), get()) }
     single { ClearClocksUseCase(get()) }
-    single { RefreshTimezonesUseCase(get(), get(), get()) }
+    single { RefreshTimezonesUseCase(get(), get(), get(), get()) }
     single<WidgetUpdateUseCase> {
         GlanceWidgetUpdateUseCase(
             get(),
-            Dispatchers.Default
+            Dispatchers.Default,
+            get(),
         )
     }
 
@@ -62,15 +67,13 @@ val appModule = module {
     single { GetUrlStateUseCase(get()) }
 
     // Repositories
-    single<AirportsRepository> { RestAirportRepository(get()) }
-    single<CalendarsRepository> { ICalendarRepository(get()) }
-    single<ClocksPreferencesRepository> { ClocksPreferencesRepositoryImpl(get()) }
+    single<AirportsRepository> { RestAirportRepository(get(), get()) }
+    single<CalendarsRepository> { ICalendarRepository(get(), get()) }
+    single<ClocksPreferencesRepository> { ClocksPreferencesRepositoryImpl(androidContext(), get()) }
+    single<UrlPreferencesRepository> { UrlPreferencesRepositoryImpl(androidContext(), get()) }
+    single<SettingsPreferencesRepository> { SettingsPreferencesRepositoryImpl(androidContext(), get()) }
 
-    single<UrlPreferencesRepository> { UrlPreferencesRepositoryImpl(get()) }
-    single<SettingsPreferencesRepository> { SettingsPreferencesRepositoryImpl(get()) }
-    single<ObservabilityRepository> { SentryObservabilityRepository() }
-
-    worker { CalendarRefreshWorker(get(), get(), get(), get(), get()) }
+    worker { CalendarRefreshWorker(get(), get(), get(), get(), get(), get()) }
 
     // Networking
     single<OkHttpClient> {

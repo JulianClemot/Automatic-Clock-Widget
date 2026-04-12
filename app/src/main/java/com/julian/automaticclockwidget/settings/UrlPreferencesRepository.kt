@@ -4,6 +4,9 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import com.julian.automaticclockwidget.core.SettingsError
+import com.julian.automaticclockwidget.core.sanitizeUrl
+import com.julian.automaticclockwidget.core.toErrorContext
+import com.julian.automaticclockwidget.observability.ObservabilityRepository
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -16,7 +19,8 @@ interface UrlPreferencesRepository {
 }
 
 class UrlPreferencesRepositoryImpl(
-    private val context: Context
+    private val context: Context,
+    private val observability: ObservabilityRepository,
 ) : UrlPreferencesRepository {
 
     private val prefs: SharedPreferences by lazy {
@@ -31,21 +35,41 @@ class UrlPreferencesRepositoryImpl(
             // Legacy format: plain URL strings — migrate transparently with empty name
             Json.decodeFromString<List<String>>(jsonStr).map { CalendarEntry(name = "", url = it) }
         }
+    }.onFailure { t ->
+        observability.sendErrorEvent(
+            throwable = t,
+            context = t.toErrorContext() + ("stage" to "getEntries"),
+        )
     }
 
     override fun addEntry(name: String, url: String): Result<Unit> = runCatching {
         val sanitizedUrl = url.trim()
         val sanitizedName = name.trim()
         if (sanitizedUrl.isEmpty()) throw SettingsError.InvalidInput("URL cannot be blank")
+        observability.log(
+            message = "Adding calendar entry",
+            category = "storage",
+            data = mapOf("name" to sanitizedName, "host" to sanitizeUrl(sanitizedUrl)),
+        )
         val current = getEntries().getOrElse { throw it }.toMutableList()
         // Remove any duplicate by URL (case-insensitive), then append so it becomes the last / selected
         current.removeAll { it.url.equals(sanitizedUrl, ignoreCase = true) }
         current.add(CalendarEntry(name = sanitizedName, url = sanitizedUrl))
         saveEntries(current)
         selectUrl(sanitizedUrl).getOrElse { throw it }
+    }.onFailure { t ->
+        observability.sendErrorEvent(
+            throwable = t,
+            context = t.toErrorContext() + ("stage" to "addEntry") + ("host" to sanitizeUrl(url)),
+        )
     }
 
     override fun deleteEntry(url: String): Result<Unit> = runCatching {
+        observability.log(
+            message = "Deleting calendar entry",
+            category = "storage",
+            data = mapOf("host" to sanitizeUrl(url)),
+        )
         val current = getEntries().getOrElse { throw it }.toMutableList()
         val removed = current.removeAll { it.url.equals(url, ignoreCase = true) }
         if (!removed) throw SettingsError.NotFound("URL not found: $url")
@@ -59,6 +83,11 @@ class UrlPreferencesRepositoryImpl(
                 selectUrl(newSelection).getOrElse { throw it }
             }
         }
+    }.onFailure { t ->
+        observability.sendErrorEvent(
+            throwable = t,
+            context = t.toErrorContext() + ("stage" to "deleteEntry") + ("host" to sanitizeUrl(url)),
+        )
     }
 
     override fun getSelectedUrl(): Result<String?> = runCatching {
@@ -70,12 +99,27 @@ class UrlPreferencesRepositoryImpl(
             // Stored selection is stale or absent — fall back to last entry
             entries.lastOrNull()?.url
         }
+    }.onFailure { t ->
+        observability.sendErrorEvent(
+            throwable = t,
+            context = t.toErrorContext() + ("stage" to "getSelectedUrl"),
+        )
     }
 
     override fun selectUrl(url: String): Result<Unit> = runCatching {
+        observability.log(
+            message = "Selecting URL",
+            category = "storage",
+            data = mapOf("host" to sanitizeUrl(url)),
+        )
         val exists = getEntries().getOrElse { throw it }.any { it.url.equals(url, ignoreCase = true) }
         if (!exists) throw SettingsError.NotFound("URL not found: $url")
         prefs.edit { putString(KEY_SELECTED_URL, url) }
+    }.onFailure { t ->
+        observability.sendErrorEvent(
+            throwable = t,
+            context = t.toErrorContext() + ("stage" to "selectUrl") + ("host" to sanitizeUrl(url)),
+        )
     }
 
     private fun saveEntries(entries: List<CalendarEntry>) {

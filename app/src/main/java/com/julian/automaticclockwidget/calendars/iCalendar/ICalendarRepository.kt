@@ -7,6 +7,10 @@ import com.julian.automaticclockwidget.calendars.Calendar
 import com.julian.automaticclockwidget.calendars.CalendarsRepository
 import com.julian.automaticclockwidget.core.CalendarError
 import com.julian.automaticclockwidget.core.UnknownError
+import com.julian.automaticclockwidget.core.sanitizeUrl
+import com.julian.automaticclockwidget.core.toErrorContext
+import com.julian.automaticclockwidget.observability.BreadcrumbLevel
+import com.julian.automaticclockwidget.observability.ObservabilityRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
@@ -15,7 +19,10 @@ import okhttp3.Request
 import java.io.IOException
 import kotlin.time.ExperimentalTime
 
-class ICalendarRepository(private val client: OkHttpClient) : CalendarsRepository {
+class ICalendarRepository(
+    private val client: OkHttpClient,
+    private val observability: ObservabilityRepository,
+) : CalendarsRepository {
 
     override suspend fun getCalendar(uri: String) = runCatching {
         val body = downloadCalendar(uri)
@@ -34,9 +41,22 @@ class ICalendarRepository(private val client: OkHttpClient) : CalendarsRepositor
                 )
             else -> throw UnknownError(cause = t)
         }
+    }.onFailure { t ->
+        observability.sendErrorEvent(
+            throwable = t,
+            context = t.toErrorContext() + ("stage" to "downloadCalendar") + ("host" to sanitizeUrl(uri)),
+            tags = mapOf("feature" to "calendars"),
+        )
     }
 
     private suspend fun downloadCalendar(uri: String) = withContext(Dispatchers.IO) {
+        val host = sanitizeUrl(uri)
+        observability.log(
+            message = "Downloading calendar",
+            category = "network",
+            data = mapOf("host" to host),
+        )
+
         val request = Request.Builder()
             .url(uri.replace("webcal://", "https://"))
             .addHeader("Accept", "text/calendar")
@@ -44,18 +64,41 @@ class ICalendarRepository(private val client: OkHttpClient) : CalendarsRepositor
 
         client.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
+                observability.log(
+                    message = "Calendar HTTP failure",
+                    category = "network",
+                    level = BreadcrumbLevel.WARNING,
+                    data = mapOf("code" to response.code, "host" to host),
+                )
                 throw CalendarError.HttpFailure(
                     code = response.code,
                     message = response.message
                 )
             }
-            response.body.string()
+            val body = response.body.string()
+            observability.log(
+                message = "Calendar downloaded",
+                category = "network",
+                data = mapOf("bytes" to body.length, "host" to host),
+            )
+            body
         }
     }
 
     private fun parseCalendar(calendarContent: String): Calendar {
+        observability.log(
+            message = "Parsing calendar",
+            category = "parse",
+            data = mapOf("bytes" to calendarContent.length),
+        )
         val timeZone = TimeZone.currentSystemDefault()
         val icalendar = Biweekly.parse(calendarContent).first()
-        return icalendar.toCalendar(timeZone)
+        val calendar = icalendar.toCalendar(timeZone)
+        observability.log(
+            message = "Calendar parsed",
+            category = "parse",
+            data = mapOf("eventsCount" to calendar.events.items.size),
+        )
+        return calendar
     }
 }

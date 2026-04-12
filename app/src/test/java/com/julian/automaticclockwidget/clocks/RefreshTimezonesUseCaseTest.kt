@@ -12,6 +12,7 @@ import com.julian.automaticclockwidget.calendars.GetUpcomingClocksUseCase
 import com.julian.automaticclockwidget.fixtures.FakeAirportsRepository
 import com.julian.automaticclockwidget.fixtures.FakeCalendarsRepository
 import com.julian.automaticclockwidget.fixtures.FakeClocksPreferencesRepository
+import com.julian.automaticclockwidget.fixtures.FakeObservabilityRepository
 import com.julian.automaticclockwidget.fixtures.FakeUrlPreferencesRepository
 import kotlinx.coroutines.runBlocking
 import kotlinx.datetime.LocalDateTime
@@ -57,10 +58,10 @@ class RefreshTimezonesUseCaseTest {
             responses["CCC"] = Result.success(Airport("CCC", "C City", TimeZone.of("UTC")))
         }
         val downloadUC = DownloadCalendarUseCase(calRepo)
-        val airportUC = GetAirportTimezoneUseCase(airRepo)
-        val getUpcomingUC = GetUpcomingClocksUseCase(downloadUC, airportUC)
+        val airportUC = GetAirportTimezoneUseCase(airRepo, FakeObservabilityRepository())
+        val getUpcomingUC = GetUpcomingClocksUseCase(downloadUC, airportUC, FakeObservabilityRepository())
 
-        val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC)
+        val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC, FakeObservabilityRepository())
 
         // When
         val res = sut.refreshNow()
@@ -93,10 +94,10 @@ class RefreshTimezonesUseCaseTest {
             responses["LHR"] = Result.success(Airport("LHR", "Heathrow", TimeZone.of("Europe/London")))
         }
         val downloadUC = DownloadCalendarUseCase(calRepo)
-        val airportUC = GetAirportTimezoneUseCase(airRepo)
-        val getUpcomingUC = GetUpcomingClocksUseCase(downloadUC, airportUC)
+        val airportUC = GetAirportTimezoneUseCase(airRepo, FakeObservabilityRepository())
+        val getUpcomingUC = GetUpcomingClocksUseCase(downloadUC, airportUC, FakeObservabilityRepository())
 
-        val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC)
+        val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC, FakeObservabilityRepository())
 
         // When
         val res = sut.refreshNow()
@@ -122,9 +123,9 @@ class RefreshTimezonesUseCaseTest {
         // Build getUpcoming with fakes (won't be called)
         val calRepo = FakeCalendarsRepository()
         val airRepo = FakeAirportsRepository()
-        val getUpcomingUC = GetUpcomingClocksUseCase(DownloadCalendarUseCase(calRepo), GetAirportTimezoneUseCase(airRepo))
+        val getUpcomingUC = GetUpcomingClocksUseCase(DownloadCalendarUseCase(calRepo), GetAirportTimezoneUseCase(airRepo, FakeObservabilityRepository()), FakeObservabilityRepository())
 
-        val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC)
+        val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC, FakeObservabilityRepository())
 
         // When
         val res = sut.refreshNow()
@@ -146,9 +147,9 @@ class RefreshTimezonesUseCaseTest {
         }
         val calRepo = FakeCalendarsRepository().apply { result = Result.failure(Exception("boom")) }
         val airRepo = FakeAirportsRepository()
-        val getUpcomingUC = GetUpcomingClocksUseCase(DownloadCalendarUseCase(calRepo), GetAirportTimezoneUseCase(airRepo))
+        val getUpcomingUC = GetUpcomingClocksUseCase(DownloadCalendarUseCase(calRepo), GetAirportTimezoneUseCase(airRepo, FakeObservabilityRepository()), FakeObservabilityRepository())
 
-        val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC)
+        val sut = RefreshTimezonesUseCase(urlRepo, clocksRepo, getUpcomingUC, FakeObservabilityRepository())
 
         // When
         val res = sut.refreshNow()

@@ -8,8 +8,13 @@ import android.content.IntentFilter
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import com.julian.automaticclockwidget.R
+import com.julian.automaticclockwidget.observability.ObservabilityRepository
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 
-class AirplaneModeMonitorService : Service() {
+class AirplaneModeMonitorService : Service(), KoinComponent {
+
+    private val observability: ObservabilityRepository by inject()
     private val airplaneModeReceiver = AirplaneModeReceiver()
 
     override fun onCreate() {
@@ -29,11 +34,14 @@ class AirplaneModeMonitorService : Service() {
         // Register receiver
         val filter = IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED)
         registerReceiver(airplaneModeReceiver, filter)
+
+        observability.log(message = "AirplaneModeMonitorService started", category = "service")
     }
 
     override fun onDestroy() {
         super.onDestroy()
         unregisterReceiver(airplaneModeReceiver)
+        observability.log(message = "AirplaneModeMonitorService stopped", category = "service")
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
