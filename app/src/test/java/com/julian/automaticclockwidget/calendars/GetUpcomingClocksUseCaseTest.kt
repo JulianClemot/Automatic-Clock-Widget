@@ -39,7 +39,7 @@ class GetUpcomingClocksUseCaseTest {
         val downloadUC = DownloadCalendarUseCase(fakeCalRepo)
 
         val fakeAirRepo = FakeAirportsRepository().apply {
-            responses["JFK"] = Result.success(Airport("JFK", "John F Kennedy", TimeZone.of("America/New_York")))
+            responses["JFK"] = Result.success(Airport("JFK", "John F. Kennedy International Airport", "John F Kennedy", "US", TimeZone.of("America/New_York")))
             responses["LHR"] = Result.failure(Exception("not available"))
         }
         val airportUC = GetAirportTimezoneUseCase(fakeAirRepo, FakeObservabilityRepository())

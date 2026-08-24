@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.ksp)
     alias(libs.plugins.sentry)
 }
 
@@ -26,7 +27,6 @@ fun loadPropertiesFile(fileName: String): Properties {
     return properties
 }
 
-val airportsProperties = loadPropertiesFile("airports.properties")
 val trackingProperties = loadPropertiesFile("tracking.properties")
 
 
@@ -46,16 +46,8 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        val apiKey = airportsProperties.getProperty("API_KEY", "")
-        if (apiKey.isNullOrBlank()) throw FileNotFoundException("Please make sure you filled in API_KEY entry in your airport.properties")
-        val baseUrl = airportsProperties.getProperty("BASE_URL", "")
-        if (baseUrl.isNullOrBlank()) throw FileNotFoundException("Please make sure you filled in BASE_URL entry in your airport.properties")
-
         val sentryDsn = trackingProperties.getProperty("SENTRY_DSN", "")
         if (sentryDsn.isNullOrBlank()) throw FileNotFoundException("Please make sure you filled in SENTRY_DSN entry in your tracking.properties")
-
-        buildConfigField("String", "AIRPORTS_API_KEY", "\"$apiKey\"")
-        buildConfigField("String", "AIRPORTS_BASE_URL", "\"$baseUrl\"")
 
         manifestPlaceholders["SENTRY_DSN"] = sentryDsn
     }
@@ -110,6 +102,9 @@ dependencies {
     implementation(libs.androidx.navigation3.runtime)
     implementation(libs.androidx.material3)
     implementation(project(":design-system"))
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+    ksp(libs.room.compiler)
 }
 
 sentry {

@@ -1,8 +1,13 @@
 package com.julian.automaticclockwidget
 
+import android.content.Context
+import androidx.room.Room
 import com.julian.automaticclockwidget.airports.AirportsRepository
 import com.julian.automaticclockwidget.airports.GetAirportTimezoneUseCase
-import com.julian.automaticclockwidget.airports.rest.RestAirportRepository
+import com.julian.automaticclockwidget.airports.github.AirportSource
+import com.julian.automaticclockwidget.airports.github.GithubAirportSource
+import com.julian.automaticclockwidget.airports.local.AirportDatabase
+import com.julian.automaticclockwidget.airports.local.LocalAirportRepository
 import com.julian.automaticclockwidget.calendars.CalendarsRepository
 import com.julian.automaticclockwidget.calendars.DownloadCalendarUseCase
 import com.julian.automaticclockwidget.calendars.GetUpcomingClocksUseCase
@@ -67,7 +72,18 @@ val appModule = module {
     single { GetUrlStateUseCase(get()) }
 
     // Repositories
-    single<AirportsRepository> { RestAirportRepository(get(), get()) }
+    single {
+        Room.databaseBuilder(androidApplication(), AirportDatabase::class.java, "airports.db").build()
+    }
+    single { get<AirportDatabase>().airportDao() }
+    single<AirportSource> { GithubAirportSource(get()) }
+    single<AirportsRepository> {
+        LocalAirportRepository(
+            dao = get(),
+            source = get(),
+            prefs = androidApplication().getSharedPreferences("automatic_clock_prefs", Context.MODE_PRIVATE),
+        )
+    }
     single<CalendarsRepository> { ICalendarRepository(get(), get()) }
     single<ClocksPreferencesRepository> { ClocksPreferencesRepositoryImpl(androidContext(), get()) }
     single<UrlPreferencesRepository> { UrlPreferencesRepositoryImpl(androidContext(), get()) }

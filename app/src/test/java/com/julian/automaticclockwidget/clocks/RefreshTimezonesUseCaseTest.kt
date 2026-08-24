@@ -53,9 +53,9 @@ class RefreshTimezonesUseCaseTest {
             Calendar("cid", events)
         ) }
         val airRepo = FakeAirportsRepository().apply {
-            responses["AAA"] = Result.success(Airport("AAA", "A City", TimeZone.of("UTC")))
+            responses["AAA"] = Result.success(Airport("AAA", "Airport A", "A City", "US", TimeZone.of("UTC")))
             responses["BBB"] = Result.failure(Exception("not available"))
-            responses["CCC"] = Result.success(Airport("CCC", "C City", TimeZone.of("UTC")))
+            responses["CCC"] = Result.success(Airport("CCC", "Airport C", "C City", "US", TimeZone.of("UTC")))
         }
         val downloadUC = DownloadCalendarUseCase(calRepo)
         val airportUC = GetAirportTimezoneUseCase(airRepo, FakeObservabilityRepository())
@@ -90,8 +90,8 @@ class RefreshTimezonesUseCaseTest {
         )
         val calRepo = FakeCalendarsRepository().apply { result = Result.success(Calendar("cid", events)) }
         val airRepo = FakeAirportsRepository().apply {
-            responses["JFK"] = Result.success(Airport("JFK", "John F Kennedy", TimeZone.of("America/New_York")))
-            responses["LHR"] = Result.success(Airport("LHR", "Heathrow", TimeZone.of("Europe/London")))
+            responses["JFK"] = Result.success(Airport("JFK", "John F. Kennedy International Airport", "New York City", "US", TimeZone.of("America/New_York")))
+            responses["LHR"] = Result.success(Airport("LHR", "Heathrow Airport", "London", "GB", TimeZone.of("Europe/London")))
         }
         val downloadUC = DownloadCalendarUseCase(calRepo)
         val airportUC = GetAirportTimezoneUseCase(airRepo, FakeObservabilityRepository())

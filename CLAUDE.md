@@ -42,14 +42,15 @@ Android widget app that displays clocks for different timezones, driven by airpo
 
 The build **will fail** without these files in `properties/`:
 
-- `properties/airports.properties` — must contain `API_KEY` and `BASE_URL`
 - `properties/tracking.properties` — must contain `SENTRY_DSN` and `SENTRY_ORGANISATION`
+
+> `properties/airports.properties` is no longer required — airport data is fetched from the mwgg/Airports GitHub repo and cached locally in Room.
 
 ## Tech Stack
 
-- Kotlin 2.3.0, AGP 8.13.2, JVM 11, Min SDK 31, Target/Compile SDK 36
+- Kotlin 2.3.20, AGP 9.1.1, KSP 2.3.10, JVM 11, Min SDK 31, Target/Compile SDK 36
 - Jetpack Compose + Glance (widgets), Navigation 3 (type-safe, `@Serializable` routes)
-- Koin (DI), WorkManager, OkHttp, biweekly (iCal parsing), kotlinx-datetime
+- Koin (DI), WorkManager, OkHttp, Room 2.7.1 (local airport DB), biweekly (iCal parsing), kotlinx-datetime
 - JUnit 4, no ktlint/detekt (Android Lint only)
 
 ## Architecture
@@ -58,7 +59,7 @@ Clean Architecture with feature-based packages under `com.julian.automaticclockw
 
 ```
 core/               # AppError sealed hierarchy
-airports/           # Airport timezone lookup (REST source)
+airports/           # Airport lookup: domain model, local/ (Room DB), github/ (mwgg source)
 calendars/          # iCalendar download & parsing (iCalendar source)
 clocks/             # Clock storage & display formatting
 settings/           # URL management preferences
@@ -71,7 +72,7 @@ workers/            # CalendarRefreshWorker (WorkManager)
 AppModule.kt        # Koin module
 ```
 
-Data flow: User adds iCal URL → `CalendarRefreshWorker` downloads & parses it → extracts airport IATA codes from events → fetches timezones via REST → stores `StoredClock` list → `AutomaticClockWidget` reads and renders clocks.
+Data flow: User adds iCal URL → `CalendarRefreshWorker` downloads & parses it → extracts airport IATA codes from events → looks up timezone in local Room DB (seeded from mwgg/Airports JSON on first use, refreshed when GitHub has a newer commit) → stores `StoredClock` list → `AutomaticClockWidget` reads and renders clocks.
 
 ## Code Style
 
@@ -92,7 +93,7 @@ Data flow: User adds iCal URL → `CalendarRefreshWorker` downloads & parses it 
 **Classes:**
 - `VerbNounUseCase` — e.g., `GetAirportTimezoneUseCase`, `RefreshTimezonesUseCase`
 - `NounRepository` for interfaces — e.g., `AirportsRepository`
-- `SourceNounRepository` for implementations — e.g., `RestAirportRepository`, `ICalendarRepository`
+- `SourceNounRepository` for implementations — e.g., `LocalAirportRepository`, `ICalendarRepository`
 - `ScreenNameViewModel` — e.g., `HomeViewModel`
 - Simple nouns for data classes — e.g., `Airport`, `Event`, `Calendar`
 - Sealed classes for state/errors — e.g., `AppError`, `HomeUiEvent`
@@ -106,105 +107,6 @@ val uiState: StateFlow<HomeUiState> = _uiState
 ```
 
 **Constants:** `SCREAMING_SNAKE_CASE` in companion objects.
-
-## Key Patterns
-
-### Use Cases
-Single public method, return `Result<T>`, `suspend` for async:
-```kotlin
-class GetAirportTimezoneUseCase(private val airportsRepository: AirportsRepository) {
-    suspend fun getAirportTimezone(iataCode: String): Result<Airport> {
-        return airportsRepository.findAirport(iataCode)
-    }
-}
-```
-
-### Repository
-Interface in feature package; implementation in `source/` subpackage with `.toModelName()` mapping:
-```kotlin
-// airports/AirportsRepository.kt
-interface AirportsRepository {
-    suspend fun findAirport(iataCode: String): Result<Airport>
-}
-
-// airports/rest/RestAirportRepository.kt
-class RestAirportRepository(private val client: OkHttpClient) : AirportsRepository {
-    override suspend fun findAirport(iataCode: String) = withContext(Dispatchers.IO) { ... }
-}
-```
-
-### Error Handling
-Sealed error hierarchy rooted at `AppError`. Use `runCatching { }` + `recoverCatching { }` in repositories:
-```kotlin
-override suspend fun getCalendar(uri: String) = runCatching {
-    val body = downloadCalendar(uri)
-    parseCalendar(body)
-}.recoverCatching { t ->
-    when (t) {
-        is CalendarError -> throw t
-        is IOException -> throw CalendarError.Network(cause = t)
-        else -> throw UnknownError(cause = t)
-    }
-}
-```
-ViewModels map errors to strings:
-```kotlin
-private fun mapErrorToMessage(error: Throwable): String = when (error) {
-    is SettingsError.InvalidInput -> "Invalid URL"
-    is CalendarError.Network -> "Network unavailable"
-    is AppError -> error.message ?: "Unexpected error"
-    else -> error.message ?: "Unexpected error"
-}
-```
-
-### ViewModel State
-```kotlin
-private val initialState = HomeUiState(...)
-private val _uiState = MutableStateFlow(initialState)
-val uiState: StateFlow<HomeUiState> = _uiState
-    .onStart { refreshUrls() }
-    .stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = initialState
-    )
-```
-
-### Compose Screen Structure
-```kotlin
-// Route (type-safe navigation)
-@Serializable
-data object HomeRoute : NavKey
-
-// Entry point (connects ViewModel to UI)
-@Composable
-fun HomeEntryPoint(viewModel: HomeViewModel) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    HomeContent(state) { event -> viewModel.onEvent(event) }
-}
-
-// Content (pure UI, no ViewModel dependency)
-@Composable
-fun HomeContent(state: HomeUiState, onEvent: (HomeUiEvent) -> Unit) { ... }
-```
-
-Events:
-```kotlin
-sealed interface HomeUiEvent {
-    data class AddUrl(val url: String) : HomeUiEvent
-    data object ManualRefresh : HomeUiEvent
-}
-```
-
-### DI (Koin)
-```kotlin
-val appModule = module {
-    viewModel<HomeViewModel> { HomeViewModel(get(), get(), androidApplication()) }
-    single { GetAirportTimezoneUseCase(get()) }
-    single<AirportsRepository> { RestAirportRepository(get()) }
-    worker { CalendarRefreshWorker(get(), get(), get()) }
-}
-```
 
 ## Testing
 

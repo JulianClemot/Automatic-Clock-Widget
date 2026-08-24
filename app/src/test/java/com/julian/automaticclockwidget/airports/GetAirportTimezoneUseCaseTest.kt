@@ -14,7 +14,7 @@ class GetAirportTimezoneUseCaseTest {
     fun `given repository returns airport when requesting timezone then use case forwards success`() = runBlocking {
         // Given
         val repo = FakeAirportsRepository().apply {
-            responses["JFK"] = Result.success(Airport("JFK", "John F Kennedy", TimeZone.of("America/New_York")))
+            responses["JFK"] = Result.success(Airport("JFK", "John F. Kennedy International Airport", "New York", "US", TimeZone.of("America/New_York")))
         }
         val uc = GetAirportTimezoneUseCase(repo, FakeObservabilityRepository())
 
